@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ClientsModule } from './clients/clients.module';
 import { ProjectsModule } from './projects/projects.module';
 import { SamplesModule } from './samples/samples.module';
+import { AppController } from './app.controller';
 
 
 
@@ -34,5 +35,6 @@ import { SamplesModule } from './samples/samples.module';
     ProjectsModule,
     SamplesModule,    
   ],
+  controllers: [AppController]
 })
 export class AppModule {}
