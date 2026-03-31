@@ -1,8 +1,8 @@
 export interface Env {
-  POSTGRES_HOST: string;
-  POSTGRES_PORT: number;
-  POSTGRES_DB: string;
-  POSTGRES_USER: string;
-  POSTGRES_PASSWORD: string;
+  SUPABASE_HOST: string;
+  SUPABASE_PORT: number;
+  SUPABASE_DB: string;
+  SUPABASE_USER: string;
+  SUPABASE_PASSWORD: string;
   JWT_SECRET: string;
 }
