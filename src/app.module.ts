@@ -24,7 +24,7 @@ import { SamplesModule } from './samples/samples.module';
         password: configService.get('SUPABASE_PASSWORD', { infer: true }),
         database: configService.get('SUPABASE_DB', { infer: true }),
         autoLoadEntities: true,
-        //synchronize: true, // Remember to switch to false
+        // synchronize: true,
       }),
       inject: [ConfigService],
     }),
