@@ -1,4 +1,4 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
 import { ProjectUser } from '../../projects/entities/project-user.entity';
 import { Report } from '../../projects/entities/report.entity';
 
@@ -6,7 +6,7 @@ import { Report } from '../../projects/entities/report.entity';
   name: 'users',
 })
 export class User {
-  @PrimaryGeneratedColumn('uuid', { name: 'id' })
+  @PrimaryColumn('uuid', { name: 'id' })
   id: string;
 
   @Column({ name: 'name', type: 'varchar', length: 120 })
@@ -15,8 +15,6 @@ export class User {
   @Column({ name: 'email', type: 'varchar', length: 180, unique: true })
   email: string;
 
-  @Column({ name: 'password', type: 'varchar', length: 255 })
-  password: string;
 
   @Column({ name: 'role', type: 'varchar', length: 50 })
   role: string;
