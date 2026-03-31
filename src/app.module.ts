@@ -2,6 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService} from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Env } from './env.model';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { ClientsModule } from './clients/clients.module';
+import { ProjectsModule } from './projects/projects.module';
+import { SamplesModule } from './samples/samples.module';
 
 
 
@@ -19,12 +24,15 @@ import { Env } from './env.model';
         password: configService.get('SUPABASE_PASSWORD', { infer: true }),
         database: configService.get('SUPABASE_DB', { infer: true }),
         autoLoadEntities: true,
-        synchronize: true, // Remember to switch to false
+        //synchronize: true, // Remember to switch to false
       }),
       inject: [ConfigService],
     }),
-    // add other modules here
-    
+    AuthModule,
+    UsersModule,
+    ClientsModule,
+    ProjectsModule,
+    SamplesModule,    
   ],
 })
 export class AppModule {}
