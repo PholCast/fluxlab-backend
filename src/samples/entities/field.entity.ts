@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { SampleFieldValue } from './sample-field-value.entity';
 import { Template } from './template.entity';
@@ -12,6 +13,8 @@ import { Template } from './template.entity';
 @Entity({
   name: 'fields',
 })
+@Unique(['name', 'template'])
+@Unique(['template', 'orderIndex'])
 export class Field {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id: string;
