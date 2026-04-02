@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsIn,
   IsBoolean,
   IsInt,
   IsNotEmpty,
@@ -8,6 +9,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { FIELD_DATA_TYPES } from '../constants/sample.constants';
 
 export class CreateFieldDto {
   @ApiProperty({ example: '3f7da128-cadf-4bd8-9a2a-5581d1fcb1d7' })
@@ -23,6 +25,7 @@ export class CreateFieldDto {
   @ApiProperty({ example: 'number' })
   @IsString()
   @IsNotEmpty()
+  @IsIn(FIELD_DATA_TYPES)
   @MaxLength(40)
   dataType: string;
 
