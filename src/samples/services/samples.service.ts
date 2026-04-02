@@ -37,7 +37,7 @@ export class SamplesService {
 
     const sample = this.sampleRepository.create({
       code: createSampleDto.code,
-      createdBy: createSampleDto.createdBy,
+      // createdBy: createSampleDto.createdBy,
       status: createSampleDto.status ?? 'pending',
       template,
       project,
@@ -88,7 +88,7 @@ export class SamplesService {
 
         const sample = sampleRepository.create({
           code: createSampleWithValuesDto.code,
-          createdBy: createSampleWithValuesDto.createdBy,
+          // createdBy: createSampleWithValuesDto.createdBy,
           status: createSampleWithValuesDto.status ?? 'pending',
           template,
           project,
@@ -160,7 +160,7 @@ export class SamplesService {
     }
 
     sample.code = nextCode;
-    sample.createdBy = updateSampleDto.createdBy ?? sample.createdBy;
+    // sample.createdBy = updateSampleDto.createdBy ?? sample.createdBy;
     sample.status = updateSampleDto.status ?? sample.status;
     sample.template = nextTemplate;
     sample.project = nextProject;

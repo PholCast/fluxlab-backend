@@ -24,11 +24,11 @@ export class CreateSampleDto {
   @IsUUID()
   projectId: string;
 
-  @ApiProperty({ example: 'lab.tech@fluxlab.io' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(120)
-  createdBy: string;
+  // @ApiProperty({ example: 'lab.tech@fluxlab.io' })
+  // @IsString()
+  // @IsNotEmpty()
+  // @MaxLength(120)
+  // createdBy: string;
 
   @ApiProperty({ example: 'pending', required: false })
   @IsOptional()

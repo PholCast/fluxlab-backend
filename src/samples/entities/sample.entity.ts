@@ -21,8 +21,8 @@ export class Sample {
   @Column({ name: 'code', type: 'varchar', length: 120 })
   code: string;
 
-  @Column({ name: 'created_by', type: 'varchar', length: 120 })
-  createdBy: string;
+  // @Column({ name: 'created_by', type: 'varchar', length: 120 })
+  // createdBy: string;
 
   @Column({ name: 'status', type: 'varchar', length: 50, default: 'pending' })
   status: string;

@@ -4,6 +4,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { Field } from './field.entity';
 import { Sample } from './sample.entity';
@@ -11,6 +12,7 @@ import { Sample } from './sample.entity';
 @Entity({
   name: 'sample_field_values',
 })
+@Unique(['sample', 'field'])
 export class SampleFieldValue {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id: string;
