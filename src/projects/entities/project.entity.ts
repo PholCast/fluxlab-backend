@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { Client } from '../../clients/entities/client.entity';
 import { Sample } from '../../samples/entities/sample.entity';
@@ -14,6 +15,7 @@ import { Report } from './report.entity';
 @Entity({
   name: 'projects',
 })
+@Unique('uq_projects_name_client_id', ['name', 'client'])
 export class Project {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id: string;

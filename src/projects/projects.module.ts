@@ -5,9 +5,10 @@ import { ProjectsController } from './projects.controller';
 import { Project } from './entities/project.entity';
 import { ProjectUser } from './entities/project-user.entity';
 import { Report } from './entities/report.entity';
+import { Client } from '../clients/entities/client.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Project, ProjectUser, Report])],
+  imports: [TypeOrmModule.forFeature([Project, ProjectUser, Report, Client])],
   controllers: [ProjectsController],
   providers: [ProjectsService],
   exports: [ProjectsService],

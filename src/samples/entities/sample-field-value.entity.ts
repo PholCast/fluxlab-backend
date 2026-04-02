@@ -24,14 +24,20 @@ export class SampleFieldValue {
   @Column({ name: 'value_date', type: 'date', nullable: true })
   valueDate: Date | null;
 
-  @Column({ name: 'value_binary', type: 'bytea', nullable: true })
-  valueBinary: Buffer | null;
+  @Column({ name: 'value_boolean', type: 'boolean', nullable: true })
+  valueBoolean: boolean | null;
 
-  @ManyToOne(() => Sample, (sample) => sample.sampleFieldValues, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Sample, (sample) => sample.sampleFieldValues, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'sample_id' })
   sample: Sample;
 
-  @ManyToOne(() => Field, (field) => field.sampleFieldValues, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Field, (field) => field.sampleFieldValues, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'field_id' })
   field: Field;
 }
