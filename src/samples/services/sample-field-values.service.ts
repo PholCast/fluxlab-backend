@@ -150,6 +150,29 @@ export class SampleFieldValuesService {
     return this.sampleFieldValueRepository.save(existingValue);
   }
 
+  async remove(id: string): Promise<void> {
+    const existingValue = await this.sampleFieldValueRepository.findOne({
+      where: { id },
+      relations: {
+        field: true,
+      },
+    });
+
+    if (!existingValue) {
+      throw new NotFoundException(
+        `SampleFieldValue with id ${id} was not found.`,
+      );
+    }
+
+    if (existingValue.field.required) {
+      throw new BadRequestException(
+        'Cannot delete a sample field value for a required field.',
+      );
+    }
+
+    await this.sampleFieldValueRepository.remove(existingValue);
+  }
+
   private async getSampleOrThrow(sampleId: string): Promise<Sample> {
     const sample = await this.sampleRepository.findOne({
       where: { id: sampleId },

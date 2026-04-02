@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -9,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
@@ -54,5 +56,13 @@ export class SampleFieldValuesController {
     @Body() updateSampleFieldValueDto: UpdateSampleFieldValueDto,
   ): Promise<SampleFieldValue> {
     return this.sampleFieldValuesService.update(id, updateSampleFieldValueDto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete sample field value' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiNoContentResponse({ description: 'Sample field value deleted' })
+  async remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    await this.sampleFieldValuesService.remove(id);
   }
 }
