@@ -1,3 +1,4 @@
+
 import {
   CanActivate,
   ExecutionContext,
@@ -5,14 +6,15 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import type { JWTVerifyGetKey } from 'jose';
 import { Env } from 'src/env.model';
 import { SupabaseUser } from '../types/supabase-user.interface';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
-  private jwks;
+  private jwks: JWTVerifyGetKey | null = null;
   private issuer: string;
+  private joseModulePromise: Promise<typeof import('jose')> | null = null;
 
   constructor(private configService: ConfigService<Env>) {
     const projectId = this.configService.get('SUPABASE_PROJECT_ID', {
@@ -24,10 +26,25 @@ export class SupabaseAuthGuard implements CanActivate {
     }
 
     this.issuer = `https://${projectId}.supabase.co/auth/v1`;
+  }
 
-    this.jwks = createRemoteJWKSet(
-      new URL(`${this.issuer}/.well-known/jwks.json`)
-    );
+  private async getJoseModule(): Promise<typeof import('jose')> {
+    if (!this.joseModulePromise) {
+      this.joseModulePromise = import('jose');
+    }
+
+    return this.joseModulePromise;
+  }
+
+  private async getJwks(): Promise<JWTVerifyGetKey> {
+    if (!this.jwks) {
+      const { createRemoteJWKSet } = await this.getJoseModule();
+      this.jwks = createRemoteJWKSet(
+        new URL(`${this.issuer}/.well-known/jwks.json`),
+      );
+    }
+
+    return this.jwks;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -41,7 +58,10 @@ export class SupabaseAuthGuard implements CanActivate {
     const token = authHeader.split(' ')[1];
 
     try {
-      const { payload } = await jwtVerify(token, this.jwks, {
+      const { jwtVerify } = await this.getJoseModule();
+      const jwks = await this.getJwks();
+
+      const { payload } = await jwtVerify(token, jwks, {
         issuer: this.issuer,
         audience: 'authenticated',
       });
