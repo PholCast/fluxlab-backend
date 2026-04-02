@@ -2,7 +2,7 @@ import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDateString,
-  IsInt,
+  IsNumber,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -56,7 +56,7 @@ export class CreateSampleFieldValueDto {
 
   @ApiProperty({ example: 8, required: false })
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   valueNumber?: number;
 
   @ApiProperty({ example: '2026-03-31', required: false })

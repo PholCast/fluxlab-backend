@@ -20,7 +20,7 @@ export class SampleFieldValue {
   @Column({ name: 'value_text', type: 'varchar', length: 255, nullable: true })
   valueText: string | null;
 
-  @Column({ name: 'value_number', type: 'int', nullable: true })
+  @Column({ name: 'value_number', type: 'float', nullable: true })
   valueNumber: number | null;
 
   @Column({ name: 'value_date', type: 'date', nullable: true })

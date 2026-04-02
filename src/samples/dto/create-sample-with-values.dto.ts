@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsDateString,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -55,7 +56,7 @@ export class CreateSampleWithValuesItemDto {
 
   @ApiPropertyOptional({ example: 10 })
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   valueNumber?: number;
 
   @ApiPropertyOptional({ example: '2026-03-31' })
