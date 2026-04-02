@@ -8,6 +8,7 @@ import { ClientsModule } from './clients/clients.module';
 import { ProjectsModule } from './projects/projects.module';
 import { SamplesModule } from './samples/samples.module';
 import { AppController } from './app.controller';
+import { SupabaseModule } from './supabase/supabase.module';
 
 
 
@@ -33,7 +34,8 @@ import { AppController } from './app.controller';
     UsersModule,
     ClientsModule,
     ProjectsModule,
-    SamplesModule,    
+    SamplesModule,
+    SupabaseModule,    
   ],
   controllers: [AppController]
 })

@@ -6,4 +6,6 @@ export interface Env {
   SUPABASE_PASSWORD: string;
   SUPABASE_PROJECT_ID: string;
   JWT_SECRET: string;
+  SUPABASE_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
 }
