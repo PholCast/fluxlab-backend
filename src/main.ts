@@ -21,11 +21,18 @@ async function bootstrap() {
     }),
   );
 
+  // Prefijo global para todas las rutas
+  app.setGlobalPrefix('api');
 
-  const config = new DocumentBuilder().setTitle('Fluxlab API').setDescription('Fluxlab API description').setVersion('1.0').build();
+  const config = new DocumentBuilder()
+    .setTitle('Fluxlab API')
+    .setDescription('Fluxlab API description')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, documentFactory, {
-    jsonDocumentUrl: 'swagger/json',
+  SwaggerModule.setup('api/docs', app, documentFactory, {
+    jsonDocumentUrl: 'api/swagger/json',
   });
 
 

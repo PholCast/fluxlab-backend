@@ -62,9 +62,30 @@ export class UsersService {
   }
 
   async findAll() {
-    return this.userRepo.find({
+    const users = await this.userRepo.find({
       order: { createdAt: 'DESC' },
     });
+
+    // Add last_sign_in_at from Supabase for each user
+    try {
+      const supabase = this.supabaseService.getClient();
+      const usersWithSignIn = await Promise.all(
+        users.map(async (user) => {
+          try {
+            const { data: authData } = await supabase.auth.admin.getUserById(user.id);
+            return {
+              ...user,
+              last_sign_in_at: authData?.user?.last_sign_in_at,
+            };
+          } catch (err) {
+            return user;
+          }
+        }),
+      );
+      return usersWithSignIn;
+    } catch (err) {
+      return users;
+    }
   }
 
   async findOne(id: string | number) {
@@ -74,6 +95,21 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Get last_sign_in_at from Supabase
+    try {
+      const supabase = this.supabaseService.getClient();
+      const { data: authData } = await supabase.auth.admin.getUserById(user.id);
+      
+      if (authData?.user) {
+        return {
+          ...user,
+          last_sign_in_at: authData.user.last_sign_in_at,
+        };
+      }
+    } catch (err) {
+      // If error, return user without last_sign_in_at
     }
 
     return user;
@@ -185,6 +221,29 @@ export class UsersService {
     if (error) {
       throw new ConflictException(`Error updating password in Supabase: ${error.message}`);
     }
+  }
+
+  async changePassword(userId: string, newPassword: string): Promise<{ success: boolean }> {
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters long');
+    }
+
+    const user = await this.userRepo.findOne({
+      where: { id: String(userId) },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Update password in Supabase
+    await this.updateAuthPassword(userId, newPassword);
+
+    // Mark password as changed in database
+    user.passwordChanged = true;
+    await this.userRepo.save(user);
+
+    return { success: true };
   }
 
   private validateRole(role: string): void {
