@@ -4,18 +4,19 @@ import {
   Post,
   Body,
   Patch,
-  Put,
   Param,
   Delete,
   UseGuards,
   Request,
+  Put,
 } from '@nestjs/common';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { SupabaseAuthGuard } from 'src/auth/guards/supabase-auth.guard';
 import { ROLES } from 'src/auth/roles';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { SupabaseAuthGuard } from 'src/auth/guards/supabase-auth.guard';
 
 @Controller('users')
 export class UsersController {
@@ -36,7 +37,8 @@ export class UsersController {
   @Get('me')
   @UseGuards(SupabaseAuthGuard)
   getCurrentUser(@Request() req) {
-    return this.usersService.findOne(req.user.id);
+    const userId = req.user?.sub || req.user?.id || req.user?.user_id;
+    return this.usersService.findOne(userId);
   }
 
   @Get(':id')
@@ -56,8 +58,15 @@ export class UsersController {
 
   @Put('change-password')
   @UseGuards(SupabaseAuthGuard)
-  changePassword(@Request() req, @Body('password') password: string) {
-    return this.usersService.changePassword(req.user.id, password);
+  changePassword(@Request() req, @Body('password') newPassword: string) {
+    const userId = req.user?.sub || req.user?.id || req.user?.user_id;
+    return this.usersService.changePassword(userId, newPassword);
+  }
+
+  @Patch(':id/role')
+  @UseGuards(new RolesGuard([ROLES.ADMIN]))
+  updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
+    return this.usersService.updateUserRole(id, dto.role);
   }
 
   @Delete(':id')
