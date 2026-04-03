@@ -26,7 +26,7 @@ import { SupabaseModule } from './supabase/supabase.module';
         password: configService.get('SUPABASE_PASSWORD', { infer: true }),
         database: configService.get('SUPABASE_DB', { infer: true }),
         autoLoadEntities: true,
-        synchronize: true,
+        // synchronize: true,
       }),
       inject: [ConfigService],
     }),
