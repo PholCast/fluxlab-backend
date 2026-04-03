@@ -194,6 +194,30 @@ export class UsersService {
     }
   }
 
+  async changePassword(userId: string, newPassword: string): Promise<any> {
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('Password must have at least 8 characters');
+    }
+
+    const supabase = this.supabaseService.getClient();
+
+    // Update password in Supabase
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      password: newPassword,
+    });
+
+    if (error) {
+      throw new ConflictException(`Error updating password in Supabase: ${error.message}`);
+    }
+
+    // Mark passwordChanged as true in database
+    const user = await this.findOne(userId);
+    user.passwordChanged = true;
+    await this.userRepo.save(user);
+
+    return user;
+  }
+
   private validateRole(role: string): void {
     if (!Object.values(ROLES).includes(role as (typeof ROLES)[keyof typeof ROLES])) {
       throw new BadRequestException(`Invalid role. Allowed roles: ${Object.values(ROLES).join(', ')}`);
