@@ -21,6 +21,7 @@ import {
 import { SamplesService } from '../services/samples.service';
 import { CreateSampleDto } from '../dto/create-sample.dto';
 import { CreateSampleWithValuesDto } from '../dto/create-sample-with-values.dto';
+import { SamplesRepositoryProjectItemDto } from '../dto/sample-repository-response.dto';
 import { UpdateSampleDto } from '../dto/update-sample.dto';
 import { Sample } from '../entities/sample.entity';
 
@@ -50,6 +51,13 @@ export class SamplesController {
   @ApiOkResponse({ type: Sample, isArray: true })
   findAll(): Promise<Sample[]> {
     return this.samplesService.findAll();
+  }
+
+  @Get('repository')
+  @ApiOperation({ summary: 'List samples grouped by project and template' })
+  @ApiOkResponse({ type: SamplesRepositoryProjectItemDto, isArray: true })
+  findRepository(): Promise<SamplesRepositoryProjectItemDto[]> {
+    return this.samplesService.findRepository();
   }
 
   @Get(':id')
