@@ -13,6 +13,7 @@ import { ROLES } from 'src/auth/roles';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 
 @Controller('users')
 export class UsersController {
@@ -43,6 +44,12 @@ export class UsersController {
   @Patch(':id/password')
   updatePassword(@Param('id') id: string, @Body('password') password: string) {
     return this.usersService.updateAuthPassword(id, password);
+  }
+
+  @Patch(':id/role')
+  @UseGuards(new RolesGuard([ROLES.ADMIN]))
+  updateRole(@Param('id') id: string, @Body() dto: UpdateUserRoleDto) {
+    return this.usersService.updateUserRole(id, dto.role);
   }
 
   @Delete(':id')

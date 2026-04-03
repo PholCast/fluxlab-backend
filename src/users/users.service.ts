@@ -82,45 +82,48 @@ export class UsersService {
   async update(id: string | number, data: UpdateUserDto) {
     const user = await this.findOne(id);
 
-    if (typeof data.role === 'string') {
-      this.validateRole(data.role);
+    if (typeof data.password !== 'undefined') {
+      throw new BadRequestException('Password must be updated using PATCH /users/:id/password');
     }
 
-    const roleChanged = typeof data.role === 'string' && data.role !== user.role;
-    const hasPasswordUpdate = typeof data.password === 'string' && data.password.length > 0;
+    if (typeof data.role !== 'undefined') {
+      throw new BadRequestException('Role must be updated using PATCH /users/:id/role');
+    }
+
+    if (data.email && data.email !== user.email) {
+      const emailInUse = await this.userRepo.findOne({ where: { email: data.email } });
+      if (emailInUse && emailInUse.id !== user.id) {
+        throw new ConflictException('A user with this email already exists');
+      }
+    }
+
+    const updatableData = {
+      name: data.name,
+      email: data.email,
+      active: data.active,
+    };
+    const mergedUser = this.userRepo.merge(user, updatableData);
+    return this.userRepo.save(mergedUser);
+  }
+
+  async updateUserRole(userId: string, newRole: string) {
+    const user = await this.findOne(userId);
+    this.validateRole(newRole);
+
+    if (user.role === newRole) {
+      return user;
+    }
+
     const previousRole = user.role;
 
-    if (roleChanged) {
-      await this.updateAppMetadata(user.id, data.role as string);
-    }
-
-    if (hasPasswordUpdate) {
-      try {
-        await this.updateAuthPassword(user.id, data.password as string);
-      } catch (error) {
-        if (roleChanged) {
-          await this.updateAppMetadata(user.id, previousRole);
-        }
-
-        throw error;
-      }
-    }
-
-    const { password, ...updatableData } = data;
-    const mergedUser = this.userRepo.merge(user, updatableData);
+    await this.updateAppMetadata(user.id, newRole);
+    user.role = newRole;
 
     try {
-      return await this.userRepo.save(mergedUser);
-    } catch (error) {
-      if (roleChanged) {
-        try {
-          await this.updateAppMetadata(user.id, previousRole);
-        } catch {
-          throw new ConflictException('Failed to persist role in database and failed to rollback Supabase metadata');
-        }
-      }
-
-      throw error;
+      return await this.userRepo.save(user);
+    } catch {
+      await this.updateAppMetadata(user.id, previousRole);
+      throw new ConflictException('Failed to update role in database');
     }
   }
 
@@ -176,6 +179,10 @@ export class UsersService {
   }
 
   async updateAuthPassword(userId: string, newPassword: string): Promise<void> {
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('Password must have at least 8 characters');
+    }
+
     const supabase = this.supabaseService.getClient();
 
     const { error } = await supabase.auth.admin.updateUserById(userId, {
