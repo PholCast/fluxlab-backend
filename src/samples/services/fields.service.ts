@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { CreateFieldDto } from '../dto/create-field.dto';
 import { UpdateFieldDto } from '../dto/update-field.dto';
 import { Field } from '../entities/field.entity';
+import { SampleFieldValue } from '../entities/sample-field-value.entity';
 import { Template } from '../entities/template.entity';
 
 @Injectable()
@@ -108,6 +109,8 @@ export class FieldsService {
 
     return this.fieldRepository.manager.transaction(async (manager) => {
       const managedFieldRepository = manager.getRepository(Field);
+      const managedSampleFieldValueRepository =
+        manager.getRepository(SampleFieldValue);
 
       const field = await managedFieldRepository.findOne({
         where: { id },
@@ -116,6 +119,23 @@ export class FieldsService {
 
       if (!field) {
         throw new NotFoundException(`Field with id ${id} was not found.`);
+      }
+
+      if (updateFieldDto.dataType !== undefined) {
+        const currentDataType = field.dataType.trim().toLowerCase();
+        const nextDataType = updateFieldDto.dataType.trim().toLowerCase();
+
+        if (nextDataType !== currentDataType) {
+          const fieldValueCount = await managedSampleFieldValueRepository.count({
+            where: { field: { id: field.id } },
+          });
+
+          if (fieldValueCount > 0) {
+            throw new BadRequestException(
+              'Field dataType cannot be updated because sample field values already exist for this field.',
+            );
+          }
+        }
       }
 
       field.name = updateFieldDto.name ?? field.name;

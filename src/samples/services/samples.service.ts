@@ -11,6 +11,10 @@ import {
   CreateSampleWithValuesDto,
   CreateSampleWithValuesItemDto,
 } from '../dto/create-sample-with-values.dto';
+import {
+  SamplesRepositoryProjectItemDto,
+  SamplesRepositorySampleItemDto,
+} from '../dto/sample-repository-response.dto';
 import { UpdateSampleDto } from '../dto/update-sample.dto';
 import { Project } from '../../projects/entities/project.entity';
 import { Field } from '../entities/field.entity';
@@ -57,6 +61,96 @@ export class SamplesService {
         createdAt: 'DESC',
       },
     });
+  }
+
+  async findRepository(): Promise<SamplesRepositoryProjectItemDto[]> {
+    const samples = await this.sampleRepository
+      .createQueryBuilder('sample')
+      .leftJoinAndSelect('sample.project', 'project')
+      .leftJoinAndSelect('project.client', 'client')
+      .leftJoinAndSelect('sample.template', 'template')
+      .leftJoinAndSelect('template.fields', 'field')
+      .leftJoinAndSelect('sample.sampleFieldValues', 'sampleFieldValue')
+      .leftJoinAndSelect('sampleFieldValue.field', 'sampleFieldValueField')
+      .orderBy('project.name', 'ASC')
+      .addOrderBy('template.name', 'ASC')
+      .addOrderBy('field.orderIndex', 'ASC')
+      .addOrderBy('sample.createdAt', 'DESC')
+      .addOrderBy('sampleFieldValue.id', 'ASC')
+      .getMany();
+
+    const projectMap = new Map<string, SamplesRepositoryProjectItemDto>();
+
+    for (const sample of samples) {
+      const project = sample.project;
+      const template = sample.template;
+
+      if (!project || !template) {
+        continue;
+      }
+
+      let projectItem = projectMap.get(project.id);
+
+      if (!projectItem) {
+        projectItem = {
+          id: project.id,
+          name: project.name,
+          status: project.status,
+          client: project.client
+            ? {
+                id: project.client.id,
+                name: project.client.name,
+              }
+            : null,
+          templates: [],
+        };
+
+        projectMap.set(project.id, projectItem);
+      }
+
+      let templateItem = projectItem.templates.find(
+        (existingTemplate) => existingTemplate.id === template.id,
+      );
+
+      if (!templateItem) {
+        templateItem = {
+          id: template.id,
+          name: template.name,
+          fields: (template.fields ?? [])
+            .slice()
+            .sort((a, b) => a.orderIndex - b.orderIndex)
+            .map((field) => ({
+              id: field.id,
+              name: field.name,
+              dataType: field.dataType,
+              required: field.required,
+              orderIndex: field.orderIndex,
+            })),
+          samples: [],
+        };
+
+        projectItem.templates.push(templateItem);
+      }
+
+      const sampleItem: SamplesRepositorySampleItemDto = {
+        id: sample.id,
+        code: sample.code,
+        status: sample.status,
+        createdAt: sample.createdAt,
+        values: (sample.sampleFieldValues ?? []).map((sampleFieldValue) => ({
+          id: sampleFieldValue.id,
+          fieldId: sampleFieldValue.field?.id,
+          valueText: sampleFieldValue.valueText,
+          valueNumber: sampleFieldValue.valueNumber,
+          valueDate: sampleFieldValue.valueDate,
+          valueBoolean: sampleFieldValue.valueBoolean,
+        })),
+      };
+
+      templateItem.samples.push(sampleItem);
+    }
+
+    return [...projectMap.values()];
   }
 
   async createWithValues(
