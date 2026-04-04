@@ -13,6 +13,7 @@ import {
   CreateTemplateWithFieldsItemDto,
 } from '../dto/create-template-with-fields.dto';
 import { UpdateTemplateDto } from '../dto/update-template.dto';
+import { UpdateTemplateWithFieldsDto } from '../dto/update-template-with-fields.dto';
 import { Field } from '../entities/field.entity';
 import { Template } from '../entities/template.entity';
 
@@ -79,7 +80,11 @@ export class TemplatesService {
 
   async findAll(): Promise<Template[]> {
     return this.templateRepository.find({
-      order: { createdAt: 'DESC' },
+      relations: { fields: true },
+      order: { 
+        createdAt: 'DESC',
+        fields: { orderIndex: 'ASC' }
+      },
     });
   }
 
@@ -100,7 +105,7 @@ export class TemplatesService {
 
   async update(
     id: string,
-    updateTemplateDto: UpdateTemplateDto,
+    updateTemplateDto: UpdateTemplateWithFieldsDto,
   ): Promise<Template> {
     const template = await this.templateRepository.findOne({ where: { id } });
 
@@ -109,14 +114,49 @@ export class TemplatesService {
     }
 
     if (updateTemplateDto.name && updateTemplateDto.name !== template.name) {
-      await this.ensureNameIsUnique(updateTemplateDto.name);
+      const templateRepo = this.templateRepository;
+      await this.ensureNameIsUnique(updateTemplateDto.name, templateRepo);
     }
 
-    template.name = updateTemplateDto.name ?? template.name;
-    template.description =
-      updateTemplateDto.description ?? template.description;
+    const updatedTemplateId = await this.templateRepository.manager.transaction(
+      async (manager) => {
+        const templateRepo = manager.getRepository(Template);
+        const fieldRepo = manager.getRepository(Field);
 
-    return this.templateRepository.save(template);
+        // Update basic info
+        template.name = updateTemplateDto.name ?? template.name;
+        template.description =
+          updateTemplateDto.description ?? template.description;
+        await templateRepo.save(template);
+
+        // If fields are provided, replace them
+        if (updateTemplateDto.fields) {
+          // Delete existing fields
+          await fieldRepo.delete({ template: { id: template.id } });
+
+          // Create new fields
+          const normalizedFields = this.validateAndNormalizeFields(
+            updateTemplateDto.fields as any,
+          );
+
+          const fieldsToSave = normalizedFields.map((field) =>
+            fieldRepo.create({
+              name: field.name,
+              dataType: field.dataType,
+              required: field.required,
+              orderIndex: field.orderIndex,
+              template: template,
+            }),
+          );
+
+          await fieldRepo.save(fieldsToSave);
+        }
+
+        return template.id;
+      },
+    );
+
+    return this.findOne(updatedTemplateId);
   }
 
   async remove(id: string): Promise<void> {
