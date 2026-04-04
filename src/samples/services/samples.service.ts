@@ -12,6 +12,7 @@ import {
   CreateSampleWithValuesItemDto,
 } from '../dto/create-sample-with-values.dto';
 import { UpdateSampleDto } from '../dto/update-sample.dto';
+import { UpdateSampleWithValuesDto } from '../dto/update-sample-with-values.dto';
 import { Project } from '../../projects/entities/project.entity';
 import { Field } from '../entities/field.entity';
 import { SampleFieldValue } from '../entities/sample-field-value.entity';
@@ -183,6 +184,45 @@ export class SamplesService {
     }
 
     await this.sampleRepository.remove(sample);
+  }
+
+  async updateWithValues(
+    id: string,
+    updateSampleWithValuesDto: UpdateSampleWithValuesDto,
+  ): Promise<Sample> {
+    const sample = await this.sampleRepository.findOne({
+      where: { id },
+      relations: { template: { fields: true } },
+    });
+
+    if (!sample) {
+      throw new NotFoundException(`Sample with id ${id} was not found.`);
+    }
+
+    await this.sampleRepository.manager.transaction(async (manager) => {
+      const sampleRepository = manager.getRepository(Sample);
+      const sampleFieldValueRepository = manager.getRepository(SampleFieldValue);
+
+      if (updateSampleWithValuesDto.status) {
+        sample.status = updateSampleWithValuesDto.status;
+        await sampleRepository.save(sample);
+      }
+
+      if (updateSampleWithValuesDto.values) {
+        // First delete existing values
+        await sampleFieldValueRepository.delete({ sample: { id: sample.id } });
+
+        // Then validate and create new ones
+        await this.validateAndCreateValues(
+          updateSampleWithValuesDto.values,
+          sample.template,
+          sample,
+          sampleFieldValueRepository,
+        );
+      }
+    });
+
+    return this.findOne(id);
   }
 
   private async getTemplateOrThrowWithRepository(
