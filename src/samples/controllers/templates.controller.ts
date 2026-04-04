@@ -22,6 +22,7 @@ import { TemplatesService } from '../services/templates.service';
 import { CreateTemplateDto } from '../dto/create-template.dto';
 import { CreateTemplateWithFieldsDto } from '../dto/create-template-with-fields.dto';
 import { UpdateTemplateDto } from '../dto/update-template.dto';
+import { UpdateTemplateWithFieldsDto } from '../dto/update-template-with-fields.dto';
 import { Template } from '../entities/template.entity';
 
 @ApiTags('templates')
@@ -66,7 +67,7 @@ export class TemplatesController {
   @ApiOkResponse({ type: Template })
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() updateTemplateDto: UpdateTemplateDto,
+    @Body() updateTemplateDto: UpdateTemplateWithFieldsDto,
   ): Promise<Template> {
     return this.templatesService.update(id, updateTemplateDto);
   }
