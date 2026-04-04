@@ -50,8 +50,13 @@ export class SamplesService {
   async findAll(): Promise<Sample[]> {
     return this.sampleRepository.find({
       relations: {
-        template: true,
+        template: {
+          fields: true,
+        },
         project: true,
+        sampleFieldValues: {
+          field: true,
+        },
       },
       order: {
         createdAt: 'DESC',
