@@ -80,7 +80,11 @@ export class TemplatesService {
 
   async findAll(): Promise<Template[]> {
     return this.templateRepository.find({
-      order: { createdAt: 'DESC' },
+      relations: { fields: true },
+      order: { 
+        createdAt: 'DESC',
+        fields: { orderIndex: 'ASC' }
+      },
     });
   }
 
