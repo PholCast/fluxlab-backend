@@ -115,6 +115,7 @@ export class SamplesService {
       .createQueryBuilder('sample')
       .leftJoinAndSelect('sample.template', 'template')
       .leftJoinAndSelect('template.fields', 'field')
+      .leftJoinAndSelect('sample.project', 'project')
       .leftJoinAndSelect('sample.sampleFieldValues', 'sampleFieldValue')
       .leftJoinAndSelect('sampleFieldValue.field', 'sampleValueField')
       .where('sample.id = :id', { id })
