@@ -21,6 +21,8 @@ export class ClientsService {
   ) {}
 
   async create(createClientDto: CreateClientDto) {
+    await this.ensureClientNameIsUnique(createClientDto.name);
+
     const existingClient = await this.clientsRepository.findOne({
       where: { email: createClientDto.email },
     });
@@ -32,7 +34,7 @@ export class ClientsService {
     const client = this.clientsRepository.create({
       name: createClientDto.name,
       email: createClientDto.email,
-      phoneNumber: createClientDto.phoneNumber ?? null,
+      phoneNumber: this.normalizePhoneNumber(createClientDto.phoneNumber),
       status: createClientDto.status ?? 'active',
       address: createClientDto.address ?? null,
     });
@@ -68,6 +70,15 @@ export class ClientsService {
   async update(id: string, updateClientDto: UpdateClientDto) {
     const client = await this.findClientByIdOrFail(id);
 
+    if (typeof updateClientDto.name === 'string') {
+      const nextNameLower = this.normalizeNameLower(updateClientDto.name);
+      const currentNameLower = this.normalizeNameLower(client.name);
+
+      if (nextNameLower !== currentNameLower) {
+        await this.ensureClientNameIsUnique(updateClientDto.name, id);
+      }
+    }
+
     if (updateClientDto.email && updateClientDto.email !== client.email) {
       const emailTaken = await this.clientsRepository.findOne({
         where: { email: updateClientDto.email },
@@ -80,7 +91,9 @@ export class ClientsService {
 
     const mergedClient = this.clientsRepository.merge(client, {
       ...updateClientDto,
-      phoneNumber: updateClientDto.phoneNumber ?? client.phoneNumber,
+      phoneNumber: Object.prototype.hasOwnProperty.call(updateClientDto, 'phoneNumber')
+        ? this.normalizePhoneNumber(updateClientDto.phoneNumber)
+        : client.phoneNumber,
       address: updateClientDto.address ?? client.address,
     });
 
@@ -129,7 +142,7 @@ export class ClientsService {
       .leftJoinAndSelect('project.reports', 'reports')
       .where('client.id = :clientId', { clientId })
       .orderBy('project.created_at', 'DESC');
-
+    
     if (projectStatus?.trim()) {
       projectsQuery.andWhere('LOWER(project.status) = LOWER(:status)', {
         status: projectStatus.trim(),
@@ -153,5 +166,35 @@ export class ClientsService {
     }
 
     return client;
+  }
+
+  private normalizeNameLower(name: string): string {
+    return name.toLowerCase();
+  }
+
+  private normalizePhoneNumber(phoneNumber?: string | null): string | null {
+    if (typeof phoneNumber !== 'string') {
+      return phoneNumber ?? null;
+    }
+
+    const trimmedPhoneNumber = phoneNumber.trim();
+    return trimmedPhoneNumber.length ? trimmedPhoneNumber : null;
+  }
+
+  private async ensureClientNameIsUnique(name: string, currentClientId?: string): Promise<void> {
+    const nameLower = this.normalizeNameLower(name);
+
+    const query = this.clientsRepository
+      .createQueryBuilder('client')
+      .where('LOWER(client.name) = :nameLower', { nameLower });
+
+    if (currentClientId) {
+      query.andWhere('client.id != :currentClientId', { currentClientId });
+    }
+
+    const existingClient = await query.getOne();
+    if (existingClient) {
+      throw new ConflictException('A client with this name already exists');
+    }
   }
 }

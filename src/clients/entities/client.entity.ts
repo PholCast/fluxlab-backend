@@ -1,4 +1,9 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Project } from '../../projects/entities/project.entity';
 
 @Entity({
@@ -8,7 +13,7 @@ export class Client {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id: string;
 
-  @Column({ name: 'name', type: 'varchar', length: 150 })
+  @Column({ name: 'name', type: 'varchar', length: 150, unique: true })
   name: string;
 
   @Column({ name: 'email', type: 'varchar', length: 180, unique: true })

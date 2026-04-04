@@ -4,6 +4,7 @@ import {
 	IsNotEmpty,
 	IsOptional,
 	IsString,
+	Matches,
 	MaxLength,
 } from 'class-validator';
 
@@ -22,7 +23,10 @@ export class CreateClientDto {
 	@IsOptional()
 	@IsString()
 	@MaxLength(40)
-	phoneNumber?: string;
+	@Matches(/^(?=.*\d)\+?[\d\s]+$/, {
+		message: 'phoneNumber must contain digits, spaces, and optional leading +',
+	})
+	phoneNumber?: string | null;
 
 	@ApiProperty({ example: 'active', required: false })
 	@IsOptional()
