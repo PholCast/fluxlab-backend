@@ -83,8 +83,20 @@ export class SamplesRepositoryProjectItemDto {
   @ApiProperty()
   name!: string;
 
+  @ApiProperty({ nullable: true })
+  description!: string | null;
+
+  @ApiProperty({ type: String, format: 'date', nullable: true })
+  startDate!: Date | null;
+
+  @ApiProperty({ type: String, format: 'date', nullable: true })
+  endDate!: Date | null;
+
   @ApiProperty()
   status!: string;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt!: Date;
 
   @ApiProperty({
     type: () => SamplesRepositoryProjectClientDto,

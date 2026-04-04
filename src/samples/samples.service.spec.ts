@@ -164,6 +164,9 @@ describe('SamplesService', () => {
     it('should group samples by project and template', async () => {
       const queryBuilder = createQueryBuilderMock();
       const createdAt = new Date('2026-04-03T10:00:00.000Z');
+      const projectStartDate = new Date('2026-01-15T00:00:00.000Z');
+      const projectEndDate = new Date('2026-12-20T00:00:00.000Z');
+      const projectCreatedAt = new Date('2025-12-01T08:00:00.000Z');
       sampleRepository.createQueryBuilder.mockReturnValue(queryBuilder);
       queryBuilder.getMany.mockResolvedValue([
         {
@@ -174,7 +177,11 @@ describe('SamplesService', () => {
           project: {
             id: 'project-1',
             name: 'Project A',
+            description: 'Project A description',
+            startDate: projectStartDate,
+            endDate: projectEndDate,
             status: 'active',
+            createdAt: projectCreatedAt,
             client: { id: 'client-1', name: 'Client A' },
           },
           template: {
@@ -216,7 +223,11 @@ describe('SamplesService', () => {
         {
           id: 'project-1',
           name: 'Project A',
+          description: 'Project A description',
+          startDate: projectStartDate,
+          endDate: projectEndDate,
           status: 'active',
+          createdAt: projectCreatedAt,
           client: { id: 'client-1', name: 'Client A' },
           templates: [
             {

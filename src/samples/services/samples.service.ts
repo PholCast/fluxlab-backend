@@ -95,7 +95,11 @@ export class SamplesService {
         projectItem = {
           id: project.id,
           name: project.name,
+          description: project.description,
+          startDate: project.startDate,
+          endDate: project.endDate,
           status: project.status,
+          createdAt: project.createdAt,
           client: project.client
             ? {
                 id: project.client.id,
