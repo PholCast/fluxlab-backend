@@ -23,6 +23,7 @@ import { CreateSampleDto } from '../dto/create-sample.dto';
 import { CreateSampleWithValuesDto } from '../dto/create-sample-with-values.dto';
 import { SamplesRepositoryProjectItemDto } from '../dto/sample-repository-response.dto';
 import { UpdateSampleDto } from '../dto/update-sample.dto';
+import { UpdateSampleWithValuesDto } from '../dto/update-sample-with-values.dto';
 import { Sample } from '../entities/sample.entity';
 
 @ApiTags('samples')
@@ -77,6 +78,17 @@ export class SamplesController {
     @Body() updateSampleDto: UpdateSampleDto,
   ): Promise<Sample> {
     return this.samplesService.update(id, updateSampleDto);
+  }
+
+  @Patch(':id/with-values')
+  @ApiOperation({ summary: 'Update sample with attributes and values' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiOkResponse({ type: Sample })
+  updateWithValues(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() updateSampleWithValuesDto: UpdateSampleWithValuesDto,
+  ): Promise<Sample> {
+    return this.samplesService.updateWithValues(id, updateSampleWithValuesDto);
   }
 
   @Delete(':id')

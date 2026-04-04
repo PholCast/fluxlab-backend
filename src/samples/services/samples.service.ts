@@ -11,6 +11,7 @@ import {
   CreateSampleWithValuesDto,
   CreateSampleWithValuesItemDto,
 } from '../dto/create-sample-with-values.dto';
+import { UpdateSampleWithValuesDto } from '../dto/update-sample-with-values.dto';
 import {
   SamplesRepositoryProjectItemDto,
   SamplesRepositorySampleItemDto,
@@ -266,6 +267,78 @@ export class SamplesService {
 
     await this.sampleRepository.save(sample);
     return this.findOne(sample.id);
+  }
+
+  async updateWithValues(
+    id: string,
+    updateSampleWithValuesDto: UpdateSampleWithValuesDto,
+  ): Promise<Sample> {
+    const sampleId = await this.sampleRepository.manager.transaction(
+      async (manager) => {
+        const sampleRepository = manager.getRepository(Sample);
+        const templateRepository = manager.getRepository(Template);
+        const projectRepository = manager.getRepository(Project);
+        const sampleFieldValueRepository =
+          manager.getRepository(SampleFieldValue);
+
+        const sample = await sampleRepository.findOne({
+          where: { id },
+          relations: { template: true, project: true },
+        });
+
+        if (!sample) {
+          throw new NotFoundException(`Sample with id ${id} was not found.`);
+        }
+
+        const nextTemplate = updateSampleWithValuesDto.templateId
+          ? await this.getTemplateOrThrowWithRepository(
+              updateSampleWithValuesDto.templateId,
+              templateRepository,
+            )
+          : sample.template;
+
+        const nextProject = updateSampleWithValuesDto.projectId
+          ? await this.getProjectOrThrow(
+              updateSampleWithValuesDto.projectId,
+              projectRepository,
+            )
+          : sample.project;
+
+        const nextCode = updateSampleWithValuesDto.code ?? sample.code;
+        if (nextCode !== sample.code || nextProject.id !== sample.project.id) {
+          await this.ensureCodeUniquePerProject(
+            nextCode,
+            nextProject.id,
+            sample.id,
+            sampleRepository,
+          );
+        }
+
+        sample.code = nextCode;
+        sample.status = updateSampleWithValuesDto.status ?? sample.status;
+        sample.template = nextTemplate;
+        sample.project = nextProject;
+
+        await sampleRepository.save(sample);
+
+        if (updateSampleWithValuesDto.values) {
+          // Delete old values
+          await sampleFieldValueRepository.delete({ sample: { id: sample.id } });
+
+          // Create new values
+          await this.validateAndCreateValues(
+            updateSampleWithValuesDto.values,
+            nextTemplate,
+            sample,
+            sampleFieldValueRepository,
+          );
+        }
+
+        return sample.id;
+      },
+    );
+
+    return this.findOne(sampleId);
   }
 
   async remove(id: string): Promise<void> {
