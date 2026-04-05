@@ -1,33 +1,20 @@
-import { Type } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsArray,
+  IsEnum,
   IsOptional,
-  IsString,
-  IsUUID,
   ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { CreateSampleWithValuesItemDto } from './create-sample-with-values.dto';
-import { UpdateSampleDto } from './update-sample.dto';
 
-export class UpdateSampleWithValuesDto extends UpdateSampleDto {
-  @ApiPropertyOptional({ example: 'uuid-of-template' })
+export class UpdateSampleWithValuesDto {
+  @ApiPropertyOptional({ example: 'completed', enum: ['pending', 'completed', 'rejected'] })
   @IsOptional()
-  @IsUUID()
-  templateId?: string;
+  @IsEnum(['pending', 'completed', 'rejected'])
+  status?: string;
 
-  @ApiPropertyOptional({ example: 'uuid-of-project' })
-  @IsOptional()
-  @IsUUID()
-  projectId?: string;
-
-  @ApiPropertyOptional({
-    type: CreateSampleWithValuesItemDto,
-    isArray: true,
-  })
-  @IsOptional()
-  @IsArray()
+  @ApiProperty({ type: [CreateSampleWithValuesItemDto] })
   @ValidateNested({ each: true })
   @Type(() => CreateSampleWithValuesItemDto)
-  values?: CreateSampleWithValuesItemDto[];
+  values: CreateSampleWithValuesItemDto[];
 }

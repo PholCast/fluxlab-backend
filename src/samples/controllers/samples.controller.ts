@@ -81,7 +81,7 @@ export class SamplesController {
   }
 
   @Patch(':id/with-values')
-  @ApiOperation({ summary: 'Update sample with attributes and values' })
+  @ApiOperation({ summary: 'Update sample with fields' })
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiOkResponse({ type: Sample })
   updateWithValues(
@@ -90,6 +90,7 @@ export class SamplesController {
   ): Promise<Sample> {
     return this.samplesService.updateWithValues(id, updateSampleWithValuesDto);
   }
+
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)

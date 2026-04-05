@@ -52,11 +52,28 @@ export class SamplesService {
     return this.findOne(savedSample.id);
   }
 
-  async findAll(): Promise<Sample[]> {
+  // async findAll(): Promise<Sample[]> {
+  //   return this.sampleRepository.find({
+  //     relations: {
+  //       template: true,
+  //       project: true,
+  //     },
+  //     order: {
+  //       createdAt: 'DESC',
+  //     },
+  //   });
+  // }
+
+    async findAll(): Promise<Sample[]> {
     return this.sampleRepository.find({
       relations: {
-        template: true,
+        template: {
+          fields: true,
+        },
         project: true,
+        sampleFieldValues: {
+          field: true,
+        },
       },
       order: {
         createdAt: 'DESC',
@@ -269,76 +286,44 @@ export class SamplesService {
     return this.findOne(sample.id);
   }
 
+
   async updateWithValues(
     id: string,
     updateSampleWithValuesDto: UpdateSampleWithValuesDto,
   ): Promise<Sample> {
-    const sampleId = await this.sampleRepository.manager.transaction(
-      async (manager) => {
-        const sampleRepository = manager.getRepository(Sample);
-        const templateRepository = manager.getRepository(Template);
-        const projectRepository = manager.getRepository(Project);
-        const sampleFieldValueRepository =
-          manager.getRepository(SampleFieldValue);
+    const sample = await this.sampleRepository.findOne({
+      where: { id },
+      relations: { template: { fields: true } },
+    });
 
-        const sample = await sampleRepository.findOne({
-          where: { id },
-          relations: { template: true, project: true },
-        });
+    if (!sample) {
+      throw new NotFoundException(`Sample with id ${id} was not found.`);
+    }
 
-        if (!sample) {
-          throw new NotFoundException(`Sample with id ${id} was not found.`);
-        }
+    await this.sampleRepository.manager.transaction(async (manager) => {
+      const sampleRepository = manager.getRepository(Sample);
+      const sampleFieldValueRepository = manager.getRepository(SampleFieldValue);
 
-        const nextTemplate = updateSampleWithValuesDto.templateId
-          ? await this.getTemplateOrThrowWithRepository(
-              updateSampleWithValuesDto.templateId,
-              templateRepository,
-            )
-          : sample.template;
-
-        const nextProject = updateSampleWithValuesDto.projectId
-          ? await this.getProjectOrThrow(
-              updateSampleWithValuesDto.projectId,
-              projectRepository,
-            )
-          : sample.project;
-
-        const nextCode = updateSampleWithValuesDto.code ?? sample.code;
-        if (nextCode !== sample.code || nextProject.id !== sample.project.id) {
-          await this.ensureCodeUniquePerProject(
-            nextCode,
-            nextProject.id,
-            sample.id,
-            sampleRepository,
-          );
-        }
-
-        sample.code = nextCode;
-        sample.status = updateSampleWithValuesDto.status ?? sample.status;
-        sample.template = nextTemplate;
-        sample.project = nextProject;
-
+      if (updateSampleWithValuesDto.status) {
+        sample.status = updateSampleWithValuesDto.status;
         await sampleRepository.save(sample);
+      }
 
-        if (updateSampleWithValuesDto.values) {
-          // Delete old values
-          await sampleFieldValueRepository.delete({ sample: { id: sample.id } });
+      if (updateSampleWithValuesDto.values) {
+        // First delete existing values
+        await sampleFieldValueRepository.delete({ sample: { id: sample.id } });
 
-          // Create new values
-          await this.validateAndCreateValues(
-            updateSampleWithValuesDto.values,
-            nextTemplate,
-            sample,
-            sampleFieldValueRepository,
-          );
-        }
+        // Then validate and create new ones
+        await this.validateAndCreateValues(
+          updateSampleWithValuesDto.values,
+          sample.template,
+          sample,
+          sampleFieldValueRepository,
+        );
+      }
+    });
 
-        return sample.id;
-      },
-    );
-
-    return this.findOne(sampleId);
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
