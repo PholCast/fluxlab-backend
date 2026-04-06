@@ -57,18 +57,71 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
-## Deployment
+## Deployment on Railway
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 1. Pre-flight local checks
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm install
+npm run build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+If the build succeeds locally, Railway will use the same build script.
+
+### 2. Required environment variables
+
+Create your variables in Railway using `.env.example` as reference:
+
+- `NODE_ENV=production`
+- `PORT` (Railway injects this automatically)
+- `SUPABASE_HOST`
+- `SUPABASE_PORT`
+- `SUPABASE_DB`
+- `SUPABASE_USER`
+- `SUPABASE_PASSWORD`
+- `SUPABASE_PROJECT_ID`
+- `JWT_SECRET`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+### 3. Connect repository in Railway
+
+1. Create a new project in Railway.
+2. Choose "Deploy from GitHub repo".
+3. Select this repository and branch.
+4. Railway will detect Node.js via Railpack.
+
+This project already includes `railway.json` with:
+
+- build via Railpack
+- start command: `npm run start:prod`
+- healthcheck path: `/api/public`
+
+### 4. Deploy
+
+After setting variables, trigger a deploy from Railway UI.
+
+Expected runtime flow:
+
+1. Install dependencies
+2. Run `npm run build`
+3. Start with `npm run start:prod`
+
+### 5. Verify after deploy
+
+- Health endpoint: `https://<your-domain>/api/public`
+- Swagger: `https://<your-domain>/api/docs`
+- OpenAPI JSON: `https://<your-domain>/api/swagger/json`
+
+### 6. Common issues
+
+- `ECONNREFUSED` to Postgres:
+  - verify `SUPABASE_HOST` and `SUPABASE_PORT`
+  - verify DB credentials (`SUPABASE_USER`, `SUPABASE_PASSWORD`, `SUPABASE_DB`)
+- App starts but protected endpoints fail:
+  - verify `SUPABASE_PROJECT_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+- JWT auth fails:
+  - verify `JWT_SECRET`
 
 ## Resources
 
