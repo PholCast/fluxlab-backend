@@ -16,12 +16,13 @@ import { SupabaseModule } from './supabase/supabase.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      expandVariables: true,
     }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService<Env>) => ({
         type: 'postgres',
         host: configService.get('SUPABASE_HOST', { infer: true }),
-        port: configService.get('SUPABASE_PORT', { infer: true }),
+        port: Number(configService.get('SUPABASE_PORT', { infer: true })),
         username: configService.get('SUPABASE_USER', { infer: true }),
         password: configService.get('SUPABASE_PASSWORD', { infer: true }),
         database: configService.get('SUPABASE_DB', { infer: true }),
