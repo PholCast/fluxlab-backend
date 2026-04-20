@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { Project } from '../../projects/entities/project.entity';
 import { SampleFieldValue } from './sample-field-value.entity';
@@ -13,6 +14,7 @@ import { Template } from './template.entity';
 @Entity({
   name: 'samples',
 })
+@Unique('UQ_samples_project_code', ['project', 'code'])
 
 export class Sample {
   @PrimaryGeneratedColumn('uuid', { name: 'id' })

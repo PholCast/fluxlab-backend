@@ -20,6 +20,7 @@ import {
 } from '@nestjs/swagger';
 import { SamplesService } from '../services/samples.service';
 import { CreateSampleDto } from '../dto/create-sample.dto';
+import { CreateSamplesWithValuesDto } from '../dto/create-samples-with-values.dto';
 import { CreateSampleWithValuesDto } from '../dto/create-sample-with-values.dto';
 import { SamplesRepositoryProjectItemDto } from '../dto/sample-repository-response.dto';
 import { UpdateSampleDto } from '../dto/update-sample.dto';
@@ -45,6 +46,15 @@ export class SamplesController {
     @Body() createSampleWithValuesDto: CreateSampleWithValuesDto,
   ): Promise<Sample> {
     return this.samplesService.createWithValues(createSampleWithValuesDto);
+  }
+
+  @Post('bulk-with-values')
+  @ApiOperation({ summary: 'Create many samples with values in one transaction' })
+  @ApiCreatedResponse({ type: Sample, isArray: true })
+  createManyWithValues(
+    @Body() createSamplesWithValuesDto: CreateSamplesWithValuesDto,
+  ): Promise<Sample[]> {
+    return this.samplesService.createManyWithValues(createSamplesWithValuesDto);
   }
 
   @Get()

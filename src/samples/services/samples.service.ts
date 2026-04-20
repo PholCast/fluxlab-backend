@@ -5,12 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { CreateSampleDto } from '../dto/create-sample.dto';
 import {
   CreateSampleWithValuesDto,
   CreateSampleWithValuesItemDto,
 } from '../dto/create-sample-with-values.dto';
+import { CreateSamplesWithValuesDto } from '../dto/create-samples-with-values.dto';
 import { UpdateSampleWithValuesDto } from '../dto/update-sample-with-values.dto';
 import {
   SamplesRepositoryProjectItemDto,
@@ -48,7 +49,19 @@ export class SamplesService {
       project,
     });
 
-    const savedSample = await this.sampleRepository.save(sample);
+    let savedSample: Sample;
+    try {
+      savedSample = await this.sampleRepository.save(sample);
+    } catch (error) {
+      if (this.isCodePerProjectUniqueViolation(error)) {
+        throw new ConflictException(
+          this.buildCodeAlreadyExistsMessage(createSampleDto.code, project.id),
+        );
+      }
+
+      throw error;
+    }
+
     return this.findOne(savedSample.id);
   }
 
@@ -178,52 +191,75 @@ export class SamplesService {
   async createWithValues(
     createSampleWithValuesDto: CreateSampleWithValuesDto,
   ): Promise<Sample> {
-    const sampleId = await this.sampleRepository.manager.transaction(
+    let sampleId: string;
+    try {
+      sampleId = await this.sampleRepository.manager.transaction(
+        async (manager) => {
+          const sampleRepository = manager.getRepository(Sample);
+          const templateRepository = manager.getRepository(Template);
+          const projectRepository = manager.getRepository(Project);
+          const sampleFieldValueRepository = manager.getRepository(SampleFieldValue);
+
+          return this.createWithValuesInTransaction(
+            createSampleWithValuesDto,
+            sampleRepository,
+            templateRepository,
+            projectRepository,
+            sampleFieldValueRepository,
+          );
+        },
+      );
+    } catch (error) {
+      if (this.isCodePerProjectUniqueViolation(error)) {
+        throw new ConflictException(
+          this.buildCodeAlreadyExistsMessage(
+            createSampleWithValuesDto.code,
+            createSampleWithValuesDto.projectId,
+          ),
+        );
+      }
+
+      throw error;
+    }
+
+    return this.findOne(sampleId);
+  }
+
+  async createManyWithValues(
+    createSamplesWithValuesDto: CreateSamplesWithValuesDto,
+  ): Promise<Sample[]> {
+    this.ensureNoDuplicatedCodesInBulkRequest(createSamplesWithValuesDto.samples);
+
+    const sampleIds = await this.sampleRepository.manager.transaction(
       async (manager) => {
         const sampleRepository = manager.getRepository(Sample);
         const templateRepository = manager.getRepository(Template);
         const projectRepository = manager.getRepository(Project);
         const sampleFieldValueRepository = manager.getRepository(SampleFieldValue);
 
-        const template = await this.getTemplateOrThrow(
-          createSampleWithValuesDto.templateId,
-          templateRepository,
-        );
+        const createdSampleIds: string[] = [];
 
-        const project = await this.getProjectOrThrow(
-          createSampleWithValuesDto.projectId,
-          projectRepository,
-        );
+        for (const [index, sampleDto] of createSamplesWithValuesDto.samples.entries()) {
+          try {
+            const sampleId = await this.createWithValuesInTransaction(
+              sampleDto,
+              sampleRepository,
+              templateRepository,
+              projectRepository,
+              sampleFieldValueRepository,
+            );
 
-        await this.ensureCodeUniquePerProject(
-          createSampleWithValuesDto.code,
-          project.id,
-          undefined,
-          sampleRepository,
-        );
+            createdSampleIds.push(sampleId);
+          } catch (error) {
+            this.throwBulkSampleError(error, index, sampleDto);
+          }
+        }
 
-        const sample = sampleRepository.create({
-          code: createSampleWithValuesDto.code,
-          // createdBy: createSampleWithValuesDto.createdBy,
-          status: createSampleWithValuesDto.status ?? 'pending',
-          template,
-          project,
-        });
-
-        const savedSample = await sampleRepository.save(sample);
-
-        await this.validateAndCreateValues(
-          createSampleWithValuesDto.values,
-          template,
-          savedSample,
-          sampleFieldValueRepository,
-        );
-
-        return savedSample.id;
+        return createdSampleIds;
       },
     );
 
-    return this.findOne(sampleId);
+    return Promise.all(sampleIds.map((sampleId) => this.findOne(sampleId)));
   }
 
   async findOne(id: string): Promise<Sample> {
@@ -383,6 +419,96 @@ export class SamplesService {
     return project;
   }
 
+  private async createWithValuesInTransaction(
+    createSampleWithValuesDto: CreateSampleWithValuesDto,
+    sampleRepository: Repository<Sample>,
+    templateRepository: Repository<Template>,
+    projectRepository: Repository<Project>,
+    sampleFieldValueRepository: Repository<SampleFieldValue>,
+  ): Promise<string> {
+    const template = await this.getTemplateOrThrow(
+      createSampleWithValuesDto.templateId,
+      templateRepository,
+    );
+
+    const project = await this.getProjectOrThrow(
+      createSampleWithValuesDto.projectId,
+      projectRepository,
+    );
+
+    await this.ensureCodeUniquePerProject(
+      createSampleWithValuesDto.code,
+      project.id,
+      undefined,
+      sampleRepository,
+    );
+
+    const sample = sampleRepository.create({
+      code: createSampleWithValuesDto.code,
+      // createdBy: createSampleWithValuesDto.createdBy,
+      status: createSampleWithValuesDto.status ?? 'pending',
+      template,
+      project,
+    });
+
+    const savedSample = await sampleRepository.save(sample);
+
+    await this.validateAndCreateValues(
+      createSampleWithValuesDto.values,
+      template,
+      savedSample,
+      sampleFieldValueRepository,
+    );
+
+    return savedSample.id;
+  }
+
+  private ensureNoDuplicatedCodesInBulkRequest(
+    samples: CreateSampleWithValuesDto[],
+  ): void {
+    const uniqueKeySet = new Set<string>();
+
+    for (const [index, sample] of samples.entries()) {
+      const uniqueKey = `${sample.projectId}::${sample.code}`;
+
+      if (uniqueKeySet.has(uniqueKey)) {
+        throw new ConflictException(
+          `Duplicate code ${sample.code} found in request for project ${sample.projectId} at index ${index}.`,
+        );
+      }
+
+      uniqueKeySet.add(uniqueKey);
+    }
+  }
+
+  private throwBulkSampleError(
+    error: unknown,
+    index: number,
+    sample: CreateSampleWithValuesDto,
+  ): never {
+    const prefix = `Sample at index ${index} with code ${sample.code} failed.`;
+
+    if (this.isCodePerProjectUniqueViolation(error)) {
+      throw new ConflictException(
+        `${prefix} ${this.buildCodeAlreadyExistsMessage(sample.code, sample.projectId)}`,
+      );
+    }
+
+    if (error instanceof ConflictException) {
+      throw new ConflictException(`${prefix} ${error.message}`);
+    }
+
+    if (error instanceof BadRequestException) {
+      throw new BadRequestException(`${prefix} ${error.message}`);
+    }
+
+    if (error instanceof NotFoundException) {
+      throw new NotFoundException(`${prefix} ${error.message}`);
+    }
+
+    throw error;
+  }
+
   private async ensureCodeUniquePerProject(
     code: string,
     projectId: string,
@@ -400,10 +526,27 @@ export class SamplesService {
       .getOne();
 
     if (existingSample) {
-      throw new ConflictException(
-        `Sample code ${code} already exists in project ${projectId}.`,
-      );
+      throw new ConflictException(this.buildCodeAlreadyExistsMessage(code, projectId));
     }
+  }
+
+  private buildCodeAlreadyExistsMessage(code: string, projectId: string): string {
+    return `Sample code ${code} already exists in project ${projectId}.`;
+  }
+
+  private isCodePerProjectUniqueViolation(error: unknown): boolean {
+    if (!(error instanceof QueryFailedError)) {
+      return false;
+    }
+
+    const driverError = error.driverError as
+      | { code?: string; constraint?: string }
+      | undefined;
+
+    return (
+      driverError?.code === '23505' &&
+      driverError?.constraint === 'UQ_samples_project_code'
+    );
   }
 
   private async validateAndCreateValues(
