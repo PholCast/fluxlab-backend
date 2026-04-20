@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { ILike, QueryFailedError, Repository } from 'typeorm';
 import { FIELD_DATA_TYPES } from '../constants/sample.constants';
 import { CreateTemplateDto } from '../dto/create-template.dto';
 import {
@@ -84,6 +84,25 @@ export class TemplatesService {
       order: { 
         createdAt: 'DESC',
         fields: { orderIndex: 'ASC' }
+      },
+    });
+  }
+
+  async searchByName(name: string): Promise<Template[]> {
+    if (!name?.trim()) {
+      throw new BadRequestException('Name query is required.');
+    }
+
+    const normalizedName = name.trim();
+
+    return this.templateRepository.find({
+      where: {
+        name: ILike(`%${normalizedName}%`),
+      },
+      relations: { fields: true },
+      order: {
+        name: 'ASC',
+        fields: { orderIndex: 'ASC' },
       },
     });
   }
