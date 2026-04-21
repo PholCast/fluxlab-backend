@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -16,12 +17,12 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { TemplatesService } from '../services/templates.service';
 import { CreateTemplateDto } from '../dto/create-template.dto';
 import { CreateTemplateWithFieldsDto } from '../dto/create-template-with-fields.dto';
-import { UpdateTemplateDto } from '../dto/update-template.dto';
 import { UpdateTemplateWithFieldsDto } from '../dto/update-template-with-fields.dto';
 import { Template } from '../entities/template.entity';
 
@@ -51,6 +52,14 @@ export class TemplatesController {
   @ApiOkResponse({ type: Template, isArray: true })
   findAll(): Promise<Template[]> {
     return this.templatesService.findAll();
+  }
+
+  @Get('search/by-name')
+  @ApiOperation({ summary: 'Search templates by name' })
+  @ApiQuery({ name: 'name', required: true, type: String })
+  @ApiOkResponse({ type: Template, isArray: true })
+  searchByName(@Query('name') name: string): Promise<Template[]> {
+    return this.templatesService.searchByName(name);
   }
 
   @Get(':id')

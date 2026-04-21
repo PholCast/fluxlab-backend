@@ -94,6 +94,24 @@ export class SamplesService {
     });
   }
 
+  async searchByCode(code: string): Promise<Sample[]> {
+    if (!code?.trim()) {
+      throw new BadRequestException('Code query is required.');
+    }
+
+    const normalizedCode = code.trim();
+
+    return this.buildSampleDetailsQuery()
+      .where('sample.code ILIKE :code', { code: `%${normalizedCode}%` })
+      .getMany();
+  }
+
+  async findByClient(clientId: string): Promise<Sample[]> {
+    return this.buildSampleDetailsQuery()
+      .where('client.id = :clientId', { clientId })
+      .getMany();
+  }
+
   async findRepository(): Promise<SamplesRepositoryProjectItemDto[]> {
     const samples = await this.sampleRepository
       .createQueryBuilder('sample')
@@ -186,6 +204,20 @@ export class SamplesService {
     }
 
     return [...projectMap.values()];
+  }
+
+  private buildSampleDetailsQuery() {
+    return this.sampleRepository
+      .createQueryBuilder('sample')
+      .leftJoinAndSelect('sample.template', 'template')
+      .leftJoinAndSelect('template.fields', 'field')
+      .leftJoinAndSelect('sample.project', 'project')
+      .leftJoinAndSelect('project.client', 'client')
+      .leftJoinAndSelect('sample.sampleFieldValues', 'sampleFieldValue')
+      .leftJoinAndSelect('sampleFieldValue.field', 'sampleValueField')
+      .orderBy('sample.created_at', 'DESC')
+      .addOrderBy('field.order_index', 'ASC')
+      .addOrderBy('sampleFieldValue.id', 'ASC');
   }
 
   async createWithValues(

@@ -13,6 +13,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateProjectStatusDto } from './dto/update-project-status.dto';
 import { AssociateClientProjectsDto } from './dto/associate-client-projects.dto';
+import { FilterProjectsByDateRangeDto } from './dto/filter-projects-by-date-range.dto';
 
 @Controller('projects')
 export class ProjectsController {
@@ -36,6 +37,15 @@ export class ProjectsController {
   @Get('status')
   filterByStatus(@Query('value') status: string, @Query('clientId') clientId?: string) {
     return this.projectsService.filterProjectsByStatus(status, clientId);
+  }
+
+  @Get('date-range')
+  filterByDateRange(@Query() query: FilterProjectsByDateRangeDto) {
+    return this.projectsService.filterProjectsByDateRange(
+      query.fromDate,
+      query.toDate,
+      query.clientId,
+    );
   }
 
   @Get('status/available')

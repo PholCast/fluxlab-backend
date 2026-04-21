@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -16,6 +17,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { SamplesService } from '../services/samples.service';
@@ -71,6 +73,24 @@ export class SamplesController {
     return this.samplesService.findRepository();
   }
 
+  @Get('search/by-code')
+  @ApiOperation({ summary: 'Search samples by code' })
+  @ApiQuery({ name: 'code', required: true, type: String })
+  @ApiOkResponse({ type: Sample, isArray: true })
+  searchByCode(@Query('code') code: string): Promise<Sample[]> {
+    return this.samplesService.searchByCode(code);
+  }
+
+  @Get('client/:clientId')
+  @ApiOperation({ summary: 'List samples by client' })
+  @ApiParam({ name: 'clientId', format: 'uuid' })
+  @ApiOkResponse({ type: Sample, isArray: true })
+  findByClient(
+    @Param('clientId', new ParseUUIDPipe()) clientId: string,
+  ): Promise<Sample[]> {
+    return this.samplesService.findByClient(clientId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get sample with template and values' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -100,7 +120,6 @@ export class SamplesController {
   ): Promise<Sample> {
     return this.samplesService.updateWithValues(id, updateSampleWithValuesDto);
   }
-
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
