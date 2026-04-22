@@ -22,6 +22,9 @@ export class User {
   @Column({ name: 'active', type: 'boolean', default: true })
   active: boolean;
 
+  @Column({ name: 'password_changed', type: 'boolean', default: false })
+  passwordChanged: boolean;
+
   @Column({ name: 'created_at', type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 

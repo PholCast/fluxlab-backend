@@ -185,6 +185,55 @@ export class ProjectsService {
     };
   }
 
+  async filterProjectsByDateRange(
+    fromDate: string,
+    toDate: string,
+    clientId?: string,
+  ) {
+    const parsedFromDate = new Date(fromDate);
+    const parsedToDate = new Date(toDate);
+
+    if (
+      Number.isNaN(parsedFromDate.getTime()) ||
+      Number.isNaN(parsedToDate.getTime())
+    ) {
+      throw new BadRequestException('fromDate and toDate must be valid dates');
+    }
+
+    if (parsedFromDate.getTime() > parsedToDate.getTime()) {
+      throw new BadRequestException('fromDate cannot be greater than toDate');
+    }
+
+    if (clientId) {
+      await this.findClientByIdOrFail(clientId);
+    }
+
+    const normalizedFromDate = parsedFromDate.toISOString().slice(0, 10);
+    const normalizedToDate = parsedToDate.toISOString().slice(0, 10);
+
+    const query = this.projectsRepository
+      .createQueryBuilder('project')
+      .leftJoinAndSelect('project.client', 'client')
+      .leftJoinAndSelect('project.samples', 'samples')
+      .leftJoinAndSelect('project.reports', 'reports')
+      .where('project.start_date IS NOT NULL')
+      .andWhere('project.end_date IS NOT NULL')
+      .andWhere('project.start_date <= :toDate', { toDate: normalizedToDate })
+      .andWhere('project.end_date >= :fromDate', { fromDate: normalizedFromDate })
+      .orderBy('project.created_at', 'DESC');
+
+    if (clientId) {
+      query.andWhere('client.id = :clientId', { clientId });
+    }
+
+    const projects = await query.getMany();
+
+    return {
+      message: projects.length ? 'Projects retrieved successfully' : 'No projects found',
+      data: projects,
+    };
+  }
+
   async getProjectDetail(projectId: string, clientId?: string) {
     const project = await this.projectsRepository.findOne({
       where: { id: projectId },

@@ -17,4 +17,8 @@ export class UpdateSampleWithValuesDto {
   @ValidateNested({ each: true })
   @Type(() => CreateSampleWithValuesItemDto)
   values: CreateSampleWithValuesItemDto[];
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> main

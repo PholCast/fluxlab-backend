@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
@@ -16,13 +17,20 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { SamplesService } from '../services/samples.service';
 import { CreateSampleDto } from '../dto/create-sample.dto';
+import { CreateSamplesWithValuesDto } from '../dto/create-samples-with-values.dto';
 import { CreateSampleWithValuesDto } from '../dto/create-sample-with-values.dto';
+<<<<<<< HEAD
 import { UpdateSampleWithValuesDto } from '../dto/update-sample-with-values.dto';
+=======
+import { SamplesRepositoryProjectItemDto } from '../dto/sample-repository-response.dto';
+>>>>>>> main
 import { UpdateSampleDto } from '../dto/update-sample.dto';
+import { UpdateSampleWithValuesDto } from '../dto/update-sample-with-values.dto';
 import { Sample } from '../entities/sample.entity';
 
 @ApiTags('samples')
@@ -46,11 +54,45 @@ export class SamplesController {
     return this.samplesService.createWithValues(createSampleWithValuesDto);
   }
 
+  @Post('bulk-with-values')
+  @ApiOperation({ summary: 'Create many samples with values in one transaction' })
+  @ApiCreatedResponse({ type: Sample, isArray: true })
+  createManyWithValues(
+    @Body() createSamplesWithValuesDto: CreateSamplesWithValuesDto,
+  ): Promise<Sample[]> {
+    return this.samplesService.createManyWithValues(createSamplesWithValuesDto);
+  }
+
   @Get()
   @ApiOperation({ summary: 'List samples' })
   @ApiOkResponse({ type: Sample, isArray: true })
   findAll(): Promise<Sample[]> {
     return this.samplesService.findAll();
+  }
+
+  @Get('repository')
+  @ApiOperation({ summary: 'List samples grouped by project and template' })
+  @ApiOkResponse({ type: SamplesRepositoryProjectItemDto, isArray: true })
+  findRepository(): Promise<SamplesRepositoryProjectItemDto[]> {
+    return this.samplesService.findRepository();
+  }
+
+  @Get('search/by-code')
+  @ApiOperation({ summary: 'Search samples by code' })
+  @ApiQuery({ name: 'code', required: true, type: String })
+  @ApiOkResponse({ type: Sample, isArray: true })
+  searchByCode(@Query('code') code: string): Promise<Sample[]> {
+    return this.samplesService.searchByCode(code);
+  }
+
+  @Get('client/:clientId')
+  @ApiOperation({ summary: 'List samples by client' })
+  @ApiParam({ name: 'clientId', format: 'uuid' })
+  @ApiOkResponse({ type: Sample, isArray: true })
+  findByClient(
+    @Param('clientId', new ParseUUIDPipe()) clientId: string,
+  ): Promise<Sample[]> {
+    return this.samplesService.findByClient(clientId);
   }
 
   @Get(':id')
