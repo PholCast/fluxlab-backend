@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { FilterClientsByDateRangeDto } from './dto/filter-clients-by-date-range.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 
 @Controller('clients')
@@ -35,8 +36,26 @@ export class ClientsController {
   }
 
   @Get()
-  findAll() {
-    return this.clientsService.findAll();
+  findAll(
+    @Query('name') name?: string,
+    @Query('status') status?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.clientsService.findAll({
+      name,
+      status,
+      fromDate,
+      toDate,
+    });
+  }
+
+  @Get('date-range')
+  filterByDateRange(@Query() query: FilterClientsByDateRangeDto) {
+    return this.clientsService.filterClientsByDateRange(
+      query.fromDate,
+      query.toDate,
+    );
   }
 
   @Get(':id')

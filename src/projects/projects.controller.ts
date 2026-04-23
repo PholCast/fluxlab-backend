@@ -59,8 +59,20 @@ export class ProjectsController {
   }
 
   @Get()
-  findAll() {
-    return this.projectsService.findAll();
+  findAll(
+    @Query('name') name?: string,
+    @Query('status') status?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('clientId') clientId?: string,
+  ) {
+    return this.projectsService.findAll({
+      name,
+      status,
+      fromDate,
+      toDate,
+      clientId,
+    });
   }
 
   @Get(':id')

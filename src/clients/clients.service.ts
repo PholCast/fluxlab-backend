@@ -11,6 +11,13 @@ import { UpdateClientDto } from './dto/update-client.dto';
 import { Client } from './entities/client.entity';
 import { Project } from '../projects/entities/project.entity';
 
+type ClientListFilters = {
+  name?: string;
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
 @Injectable()
 export class ClientsService {
   constructor(
@@ -42,16 +49,76 @@ export class ClientsService {
     return this.clientsRepository.save(client);
   }
   
-  async findAll() {
-    const clients = await this.clientsRepository.find({
-      relations: { projects: true },
-      order: { name: 'ASC' },
-    });
+  async findAll(filters?: ClientListFilters) {
+    const normalizedName = filters?.name?.trim();
+    const normalizedStatus = filters?.status?.trim();
+
+    const hasCombinedFilters = Boolean(
+      normalizedName || normalizedStatus || filters?.fromDate || filters?.toDate,
+    );
+
+    if (!hasCombinedFilters) {
+      const clients = await this.clientsRepository.find({
+        relations: { projects: true },
+        order: { name: 'ASC' },
+      });
+
+      return {
+        message: clients.length ? 'Clients retrieved successfully' : 'No clients found',
+        data: clients,
+      };
+    }
+
+    const { normalizedFromDate, normalizedToDate } = this.normalizeDateRange(
+      filters?.fromDate,
+      filters?.toDate,
+    );
+
+    const query = this.clientsRepository
+      .createQueryBuilder('client')
+      .leftJoinAndSelect('client.projects', 'projects')
+      .where('1=1')
+      .orderBy('client.name', 'ASC');
+
+    if (normalizedName) {
+      query.andWhere(
+        '(client.name ILIKE :name OR client.email ILIKE :name OR client.phone_number ILIKE :name OR client.address ILIKE :name)',
+        { name: `%${normalizedName}%` },
+      );
+    }
+
+    if (normalizedStatus) {
+      query.andWhere('LOWER(client.status) = LOWER(:status)', {
+        status: normalizedStatus,
+      });
+    }
+
+    if (normalizedFromDate) {
+      query.andWhere('DATE(client.created_at) >= :fromDate', {
+        fromDate: normalizedFromDate,
+      });
+    }
+
+    if (normalizedToDate) {
+      query.andWhere('DATE(client.created_at) <= :toDate', {
+        toDate: normalizedToDate,
+      });
+    }
+
+    const clients = await query.getMany();
 
     return {
       message: clients.length ? 'Clients retrieved successfully' : 'No clients found',
       data: clients,
     };
+  }
+
+  async filterClientsByDateRange(fromDate?: string, toDate?: string) {
+    if (!fromDate && !toDate) {
+      throw new BadRequestException('At least one of fromDate or toDate must be provided');
+    }
+
+    return this.findAll({ fromDate, toDate });
   }
 
   async findOne(id: string) {
@@ -196,5 +263,37 @@ export class ClientsService {
     if (existingClient) {
       throw new ConflictException('A client with this name already exists');
     }
+  }
+
+  private normalizeDateRange(fromDate?: string, toDate?: string): {
+    normalizedFromDate: string | null;
+    normalizedToDate: string | null;
+  } {
+    const parsedFromDate = fromDate ? new Date(fromDate) : null;
+    const parsedToDate = toDate ? new Date(toDate) : null;
+
+    if (
+      (parsedFromDate && Number.isNaN(parsedFromDate.getTime())) ||
+      (parsedToDate && Number.isNaN(parsedToDate.getTime()))
+    ) {
+      throw new BadRequestException('fromDate and toDate must be valid dates');
+    }
+
+    if (
+      parsedFromDate &&
+      parsedToDate &&
+      parsedFromDate.getTime() > parsedToDate.getTime()
+    ) {
+      throw new BadRequestException('fromDate cannot be greater than toDate');
+    }
+
+    return {
+      normalizedFromDate: parsedFromDate
+        ? parsedFromDate.toISOString().slice(0, 10)
+        : null,
+      normalizedToDate: parsedToDate
+        ? parsedToDate.toISOString().slice(0, 10)
+        : null,
+    };
   }
 }
