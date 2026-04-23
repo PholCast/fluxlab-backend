@@ -11,6 +11,14 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { Project } from './entities/project.entity';
 import { Client } from '../clients/entities/client.entity';
 
+type ProjectListFilters = {
+  name?: string;
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+  clientId?: string;
+};
+
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -39,15 +47,79 @@ export class ProjectsService {
     return this.projectsRepository.save(project);
   }
 
-  async findAll() {
-    const projects = await this.projectsRepository.find({
-      relations: {
-        client: true,
-        samples: true,
-        reports: true,
-      },
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(filters?: ProjectListFilters) {
+    const normalizedName = filters?.name?.trim();
+    const normalizedStatus = filters?.status?.trim();
+    const normalizedClientId = filters?.clientId?.trim();
+
+    const hasCombinedFilters = Boolean(
+      normalizedName ||
+        normalizedStatus ||
+        normalizedClientId ||
+        filters?.fromDate ||
+        filters?.toDate,
+    );
+
+    if (!hasCombinedFilters) {
+      const projects = await this.projectsRepository.find({
+        relations: {
+          client: true,
+          samples: true,
+          reports: true,
+        },
+        order: { createdAt: 'DESC' },
+      });
+
+      return {
+        message: projects.length ? 'Projects retrieved successfully' : 'No projects found',
+        data: projects,
+      };
+    }
+
+    if (normalizedClientId) {
+      await this.findClientByIdOrFail(normalizedClientId);
+    }
+
+    const { normalizedFromDate, normalizedToDate } = this.normalizeDateRange(
+      filters?.fromDate,
+      filters?.toDate,
+    );
+
+    const query = this.projectsRepository
+      .createQueryBuilder('project')
+      .leftJoinAndSelect('project.client', 'client')
+      .leftJoinAndSelect('project.samples', 'samples')
+      .leftJoinAndSelect('project.reports', 'reports')
+      .where('1=1')
+      .orderBy('project.created_at', 'DESC');
+
+    if (normalizedName) {
+      query.andWhere('project.name ILIKE :name', { name: `%${normalizedName}%` });
+    }
+
+    if (normalizedStatus) {
+      query.andWhere('LOWER(project.status) = LOWER(:status)', {
+        status: normalizedStatus,
+      });
+    }
+
+    if (normalizedFromDate) {
+      query.andWhere('DATE(project.created_at) >= :fromDate', {
+        fromDate: normalizedFromDate,
+      });
+    }
+
+    if (normalizedToDate) {
+      query.andWhere('DATE(project.created_at) <= :toDate', {
+        toDate: normalizedToDate,
+      });
+    }
+
+    if (normalizedClientId) {
+      query.andWhere('client.id = :clientId', { clientId: normalizedClientId });
+    }
+
+    const projects = await query.getMany();
 
     return {
       message: projects.length ? 'Projects retrieved successfully' : 'No projects found',
@@ -186,52 +258,15 @@ export class ProjectsService {
   }
 
   async filterProjectsByDateRange(
-    fromDate: string,
-    toDate: string,
+    fromDate?: string,
+    toDate?: string,
     clientId?: string,
   ) {
-    const parsedFromDate = new Date(fromDate);
-    const parsedToDate = new Date(toDate);
-
-    if (
-      Number.isNaN(parsedFromDate.getTime()) ||
-      Number.isNaN(parsedToDate.getTime())
-    ) {
-      throw new BadRequestException('fromDate and toDate must be valid dates');
+    if (!fromDate && !toDate) {
+      throw new BadRequestException('At least one of fromDate or toDate must be provided');
     }
 
-    if (parsedFromDate.getTime() > parsedToDate.getTime()) {
-      throw new BadRequestException('fromDate cannot be greater than toDate');
-    }
-
-    if (clientId) {
-      await this.findClientByIdOrFail(clientId);
-    }
-
-    const normalizedFromDate = parsedFromDate.toISOString().slice(0, 10);
-    const normalizedToDate = parsedToDate.toISOString().slice(0, 10);
-
-    const query = this.projectsRepository
-      .createQueryBuilder('project')
-      .leftJoinAndSelect('project.client', 'client')
-      .leftJoinAndSelect('project.samples', 'samples')
-      .leftJoinAndSelect('project.reports', 'reports')
-      .where('project.start_date IS NOT NULL')
-      .andWhere('project.end_date IS NOT NULL')
-      .andWhere('project.start_date <= :toDate', { toDate: normalizedToDate })
-      .andWhere('project.end_date >= :fromDate', { fromDate: normalizedFromDate })
-      .orderBy('project.created_at', 'DESC');
-
-    if (clientId) {
-      query.andWhere('client.id = :clientId', { clientId });
-    }
-
-    const projects = await query.getMany();
-
-    return {
-      message: projects.length ? 'Projects retrieved successfully' : 'No projects found',
-      data: projects,
-    };
+    return this.findAll({ fromDate, toDate, clientId });
   }
 
   async getProjectDetail(projectId: string, clientId?: string) {
@@ -356,6 +391,38 @@ export class ProjectsService {
     if (!project.client || project.client.id !== clientId) {
       throw new NotFoundException('Project not found for the selected client');
     }
+  }
+
+  private normalizeDateRange(fromDate?: string, toDate?: string): {
+    normalizedFromDate: string | null;
+    normalizedToDate: string | null;
+  } {
+    const parsedFromDate = fromDate ? new Date(fromDate) : null;
+    const parsedToDate = toDate ? new Date(toDate) : null;
+
+    if (
+      (parsedFromDate && Number.isNaN(parsedFromDate.getTime())) ||
+      (parsedToDate && Number.isNaN(parsedToDate.getTime()))
+    ) {
+      throw new BadRequestException('fromDate and toDate must be valid dates');
+    }
+
+    if (
+      parsedFromDate &&
+      parsedToDate &&
+      parsedFromDate.getTime() > parsedToDate.getTime()
+    ) {
+      throw new BadRequestException('fromDate cannot be greater than toDate');
+    }
+
+    return {
+      normalizedFromDate: parsedFromDate
+        ? parsedFromDate.toISOString().slice(0, 10)
+        : null,
+      normalizedToDate: parsedToDate
+        ? parsedToDate.toISOString().slice(0, 10)
+        : null,
+    };
   }
 
   private async ensureProjectNameIsUnique(

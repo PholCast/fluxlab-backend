@@ -1,24 +1,26 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsOptional, IsUUID } from 'class-validator';
 
 export class FilterProjectsByDateRangeDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '2026-01-01',
-    description: 'Initial date for project range filtering (YYYY-MM-DD).',
+    description: 'Initial creation date for project filtering (YYYY-MM-DD).',
   })
+  @IsOptional()
   @IsDateString()
-  fromDate: string;
+  fromDate?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '2026-12-31',
-    description: 'Final date for project range filtering (YYYY-MM-DD).',
+    description: 'Final creation date for project filtering (YYYY-MM-DD).',
   })
+  @IsOptional()
   @IsDateString()
-  toDate: string;
+  toDate?: string;
 
   @ApiPropertyOptional({
     example: '3f7da128-cadf-4bd8-9a2a-5581d1fcb1d7',
-    description: 'Optional client scope for date range filtering.',
+    description: 'Optional client scope for filtering.',
   })
   @IsOptional()
   @IsUUID()
