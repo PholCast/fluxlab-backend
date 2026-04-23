@@ -15,6 +15,7 @@ import {
 import { UpdateTemplateDto } from '../dto/update-template.dto';
 import { UpdateTemplateWithFieldsDto } from '../dto/update-template-with-fields.dto';
 import { Field } from '../entities/field.entity';
+import { Sample } from '../entities/sample.entity';
 import { Template } from '../entities/template.entity';
 
 @Injectable()
@@ -184,13 +185,26 @@ export class TemplatesService {
     if (!template) {
       throw new NotFoundException(`Template with id ${id} was not found.`);
     }
+    const sampleRepository = this.templateRepository.manager.getRepository(Sample);
+    const associatedSamplesCount = await sampleRepository.count({
+      where: { template: { id } },
+    });
+
+    if (associatedSamplesCount > 0) {
+      const samplesLabel =
+        associatedSamplesCount === 1 ? 'muestra asociada' : 'muestras asociadas';
+
+      throw new ConflictException(
+        `No se puede eliminar la plantilla porque tiene ${associatedSamplesCount} ${samplesLabel}. Elimina esas muestras primero.`,
+      );
+    }
 
     try {
       await this.templateRepository.remove(template);
     } catch (error) {
       if (error instanceof QueryFailedError) {
         throw new ConflictException(
-          'Template cannot be removed because it is in use by samples.',
+          'No se puede eliminar la plantilla porque tiene muestras asociadas. Elimina esas muestras primero.',
         );
       }
       throw error;
