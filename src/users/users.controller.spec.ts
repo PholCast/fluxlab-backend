@@ -162,16 +162,20 @@ describe('UsersController', () => {
   });
 
   describe('updatePassword', () => {
-    it('should call service.updateAuthPassword with id and password', async () => {
-      service.updateAuthPassword.mockResolvedValue(undefined);
+    it('should call service.updateAuthPassword with user id and passwords', async () => {
+      service.updateAuthPassword.mockResolvedValue({ id: 'user-1' });
 
-      const result = await controller.updatePassword('user-1', 'new-password-123');
+      const result = await controller.updatePassword(
+        { user: { sub: 'user-1' } },
+        { currentPassword: 'current-pass', newPassword: 'new-password-123' },
+      );
 
       expect(service.updateAuthPassword).toHaveBeenCalledWith(
         'user-1',
+        'current-pass',
         'new-password-123',
       );
-      expect(result).toBeUndefined();
+      expect(result).toEqual({ id: 'user-1' });
     });
   });
 

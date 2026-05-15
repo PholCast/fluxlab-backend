@@ -178,10 +178,21 @@ export class UsersService {
     }
   }
 
-  async updateAuthPassword(userId: string, newPassword: string): Promise<void> {
+  async updateAuthPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<User> {
+    if (!currentPassword || !currentPassword.trim()) {
+      throw new BadRequestException('Current password is required');
+    }
+
     if (!newPassword || newPassword.length < 8) {
       throw new BadRequestException('Password must have at least 8 characters');
     }
+
+    const user = await this.findOne(userId);
+    await this.verifyCurrentPassword(user.email, currentPassword);
 
     const supabase = this.supabaseService.getClient();
 
@@ -192,6 +203,12 @@ export class UsersService {
     if (error) {
       throw new ConflictException(`Error updating password in Supabase: ${error.message}`);
     }
+
+    if (!user.passwordChanged) {
+      user.passwordChanged = true;
+    }
+
+    return this.userRepo.save(user);
   }
 
   async changePassword(userId: string, newPassword: string): Promise<any> {
@@ -221,6 +238,19 @@ export class UsersService {
   private validateRole(role: string): void {
     if (!Object.values(ROLES).includes(role as (typeof ROLES)[keyof typeof ROLES])) {
       throw new BadRequestException(`Invalid role. Allowed roles: ${Object.values(ROLES).join(', ')}`);
+    }
+  }
+
+  private async verifyCurrentPassword(email: string, password: string): Promise<void> {
+    const supabase = this.supabaseService.getClient();
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw new BadRequestException('La contrasena actual es incorrecta');
     }
   }
 }

@@ -23,6 +23,7 @@ const createUserRepoMock = () => ({
 
 const createSupabaseClientMock = () => ({
   auth: {
+    signInWithPassword: jest.fn(),
     admin: {
       createUser: jest.fn(),
       deleteUser: jest.fn(),
@@ -296,21 +297,44 @@ describe('UsersService', () => {
   });
 
   describe('updateAuthPassword', () => {
-    it('should throw BadRequestException when password is too short', async () => {
-      await expect(service.updateAuthPassword('user-1', '123')).rejects.toThrow(
+    it('should throw BadRequestException when current password is missing', async () => {
+      await expect(service.updateAuthPassword('user-1', '', 'new-password-123')).rejects.toThrow(
         BadRequestException,
       );
       expect(supabaseClient.auth.admin.updateUserById).not.toHaveBeenCalled();
     });
 
-    it('should update password in Supabase', async () => {
+    it('should throw BadRequestException when new password is too short', async () => {
+      await expect(service.updateAuthPassword('user-1', 'current-pass', '123')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(supabaseClient.auth.admin.updateUserById).not.toHaveBeenCalled();
+    });
+
+    it('should validate current password and update in Supabase', async () => {
+      const user = { id: 'user-1', email: 'ana@fluxlab.io', passwordChanged: false } as User;
+      jest.spyOn(service, 'findOne').mockResolvedValue(user);
+      supabaseClient.auth.signInWithPassword.mockResolvedValue({
+        data: { session: { access_token: 'token' } },
+        error: null,
+      });
       supabaseClient.auth.admin.updateUserById.mockResolvedValue({ error: null });
+      userRepo.save.mockResolvedValue({ ...user, passwordChanged: true });
 
-      await service.updateAuthPassword('user-1', 'new-password-123');
+      const result = await service.updateAuthPassword(
+        'user-1',
+        'current-pass',
+        'new-password-123',
+      );
 
+      expect(supabaseClient.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: 'ana@fluxlab.io',
+        password: 'current-pass',
+      });
       expect(supabaseClient.auth.admin.updateUserById).toHaveBeenCalledWith('user-1', {
         password: 'new-password-123',
       });
+      expect(result).toEqual({ ...user, passwordChanged: true });
     });
   });
 

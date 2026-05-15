@@ -16,6 +16,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { SupabaseAuthGuard } from 'src/auth/guards/supabase-auth.guard';
 
 @Controller('users')
@@ -52,8 +53,13 @@ export class UsersController {
   }
 
   @Patch(':id/password')
-  updatePassword(@Param('id') id: string, @Body('password') password: string) {
-    return this.usersService.updateAuthPassword(id, password);
+  updatePassword(@Request() req, @Body() dto: UpdateUserPasswordDto) {
+    const userId = req.user?.sub || req.user?.id || req.user?.user_id;
+    return this.usersService.updateAuthPassword(
+      userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @Put('change-password')
