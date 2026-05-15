@@ -121,6 +121,17 @@ export class SamplesController {
     return this.samplesService.updateWithValues(id, updateSampleWithValuesDto);
   }
 
+  @Delete('bulk')
+  @ApiOperation({ summary: 'Delete samples by project and template' })
+  @ApiQuery({ name: 'projectId', required: true, type: String })
+  @ApiQuery({ name: 'templateId', required: true, type: String })
+  async removeBulk(
+    @Query('projectId') projectId: string,
+    @Query('templateId') templateId: string,
+  ): Promise<{ deleted: number }> {
+    return this.samplesService.removeBulk(projectId, templateId);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete sample' })

@@ -404,6 +404,25 @@ export class SamplesService {
     await this.sampleRepository.remove(sample);
   }
 
+  async removeBulk(projectId: string, templateId: string): Promise<{ deleted: number }> {
+    if (!projectId?.trim() || !templateId?.trim()) {
+      throw new BadRequestException('projectId and templateId are required.');
+    }
+
+    await this.getProjectOrThrow(projectId);
+    await this.getTemplateOrThrow(templateId);
+
+    const result = await this.sampleRepository
+      .createQueryBuilder()
+      .delete()
+      .from(Sample)
+      .where('project_id = :projectId', { projectId })
+      .andWhere('template_id = :templateId', { templateId })
+      .execute();
+
+    return { deleted: result.affected ?? 0 };
+  }
+
   private async getTemplateOrThrowWithRepository(
     templateId: string,
     templateRepository: Repository<Template>,
