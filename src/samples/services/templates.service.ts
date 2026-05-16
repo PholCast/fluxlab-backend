@@ -94,7 +94,7 @@ export class TemplatesService {
 
   async searchByName(name: string): Promise<Template[]> {
     if (!name?.trim()) {
-      throw new BadRequestException('Name query is required.');
+      throw new BadRequestException('Se requiere el nombre de búsqueda.');
     }
 
     const normalizedName = name.trim();
@@ -120,7 +120,7 @@ export class TemplatesService {
       .getOne();
 
     if (!template) {
-      throw new NotFoundException(`Template with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró la plantilla con id ${id}.`);
     }
 
     return template;
@@ -136,7 +136,7 @@ export class TemplatesService {
     });
 
     if (!template) {
-      throw new NotFoundException(`Template with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró la plantilla con id ${id}.`);
     }
 
     if (updateTemplateDto.name && updateTemplateDto.name !== template.name) {
@@ -241,7 +241,7 @@ export class TemplatesService {
     const template = await this.templateRepository.findOne({ where: { id } });
 
     if (!template) {
-      throw new NotFoundException(`Template with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró la plantilla con id ${id}.`);
     }
     const sampleRepository = this.templateRepository.manager.getRepository(Sample);
     const associatedSamplesCount = await sampleRepository.count({
@@ -279,7 +279,7 @@ export class TemplatesService {
     });
 
     if (existingTemplate) {
-      throw new ConflictException(`Template name ${name} already exists.`);
+      throw new ConflictException(`El nombre de la plantilla ${name} ya existe.`);
     }
   }
 
@@ -287,7 +287,7 @@ export class TemplatesService {
     fields: CreateTemplateWithFieldsItemDto[],
   ): CreateTemplateWithFieldsItemDto[] {
     if (!fields || fields.length === 0) {
-      throw new BadRequestException('fields must be provided and cannot be empty.');
+      throw new BadRequestException('Se deben proporcionar los campos y no pueden estar vacíos.');
     }
 
     const normalizedNameMap = new Map<string, number>();
@@ -297,14 +297,14 @@ export class TemplatesService {
       const normalizedName = field.name.trim().toLowerCase();
       if (normalizedNameMap.has(normalizedName)) {
         throw new BadRequestException(
-          `Duplicate field name detected: ${field.name}.`,
+          `Se detectó un nombre de campo duplicado: ${field.name}.`,
         );
       }
       normalizedNameMap.set(normalizedName, index);
 
       if (orderIndexMap.has(field.orderIndex)) {
         throw new BadRequestException(
-          `Duplicate orderIndex detected: ${field.orderIndex}.`,
+          `Se detectó un orderIndex duplicado: ${field.orderIndex}.`,
         );
       }
       orderIndexMap.set(field.orderIndex, index);
@@ -312,7 +312,7 @@ export class TemplatesService {
       const normalizedDataType = field.dataType.trim().toLowerCase();
       if (!FIELD_DATA_TYPES.includes(normalizedDataType as (typeof FIELD_DATA_TYPES)[number])) {
         throw new BadRequestException(
-          `Unsupported dataType ${field.dataType}. Allowed values are: ${FIELD_DATA_TYPES.join(', ')}.`,
+          `Tipo de dato no soportado ${field.dataType}. Los valores permitidos son: ${FIELD_DATA_TYPES.join(', ')}.`,
         );
       }
     });
@@ -331,7 +331,7 @@ export class TemplatesService {
     fields: UpdateTemplateWithFieldsItemDto[],
   ): UpdateTemplateWithFieldsItemDto[] {
     if (!fields || fields.length === 0) {
-      throw new BadRequestException('fields must be provided and cannot be empty.');
+      throw new BadRequestException('Se deben proporcionar los campos y no pueden estar vacíos.');
     }
 
     const normalizedNameMap = new Map<string, number>();
@@ -342,14 +342,14 @@ export class TemplatesService {
       const normalizedName = field.name.trim().toLowerCase();
       if (normalizedNameMap.has(normalizedName)) {
         throw new BadRequestException(
-          `Duplicate field name detected: ${field.name}.`,
+          `Se detectó un nombre de campo duplicado: ${field.name}.`,
         );
       }
       normalizedNameMap.set(normalizedName, index);
 
       if (orderIndexMap.has(field.orderIndex)) {
         throw new BadRequestException(
-          `Duplicate orderIndex detected: ${field.orderIndex}.`,
+          `Se detectó un orderIndex duplicado: ${field.orderIndex}.`,
         );
       }
       orderIndexMap.set(field.orderIndex, index);
@@ -358,7 +358,7 @@ export class TemplatesService {
         const normalizedFieldId = field.id.trim();
         if (fieldIdMap.has(normalizedFieldId)) {
           throw new BadRequestException(
-            `Duplicate field id detected: ${field.id}.`,
+            `Se detectó un id de campo duplicado: ${field.id}.`,
           );
         }
         fieldIdMap.set(normalizedFieldId, index);
@@ -367,7 +367,7 @@ export class TemplatesService {
       const normalizedDataType = field.dataType.trim().toLowerCase();
       if (!FIELD_DATA_TYPES.includes(normalizedDataType as (typeof FIELD_DATA_TYPES)[number])) {
         throw new BadRequestException(
-          `Unsupported dataType ${field.dataType}. Allowed values are: ${FIELD_DATA_TYPES.join(', ')}.`,
+          `Tipo de dato no soportado ${field.dataType}. Los valores permitidos son: ${FIELD_DATA_TYPES.join(', ')}.`,
         );
       }
     });
@@ -394,12 +394,12 @@ export class TemplatesService {
 
       if (!existingField) {
         throw new BadRequestException(
-          `Field ${field.id} does not belong to the selected template.`,
+          `El campo ${field.id} no pertenece a la plantilla seleccionada.`,
         );
       }
 
       if (claimedExistingFieldIds.has(existingField.id)) {
-        throw new BadRequestException(`Field ${field.id} is duplicated in the request.`);
+        throw new BadRequestException(`El campo ${field.id} está duplicado en la solicitud.`);
       }
 
       return existingField;

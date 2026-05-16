@@ -43,7 +43,7 @@ export class SampleFieldValuesService {
 
     if (existingValue) {
       throw new ConflictException(
-        'A value for this field and sample already exists.',
+        'Ya existe un valor para este campo y muestra.',
       );
     }
 
@@ -85,7 +85,7 @@ export class SampleFieldValuesService {
 
     if (!existingValue) {
       throw new NotFoundException(
-        `SampleFieldValue with id ${id} was not found.`,
+        `No se encontró el valor de campo de muestra con id ${id}.`,
       );
     }
 
@@ -110,7 +110,7 @@ export class SampleFieldValuesService {
 
     if (duplicatedValue) {
       throw new ConflictException(
-        'A value for this field and sample already exists.',
+        'Ya existe un valor para este campo y muestra.',
       );
     }
 
@@ -160,13 +160,13 @@ export class SampleFieldValuesService {
 
     if (!existingValue) {
       throw new NotFoundException(
-        `SampleFieldValue with id ${id} was not found.`,
+        `No se encontró el valor de campo de muestra con id ${id}.`,
       );
     }
 
     if (existingValue.field.required) {
       throw new BadRequestException(
-        'Cannot delete a sample field value for a required field.',
+        'No se puede eliminar un valor de campo de muestra de un campo requerido.',
       );
     }
 
@@ -180,7 +180,7 @@ export class SampleFieldValuesService {
     });
 
     if (!sample) {
-      throw new NotFoundException(`Sample with id ${sampleId} was not found.`);
+      throw new NotFoundException(`No se encontró la muestra con id ${sampleId}.`);
     }
 
     return sample;
@@ -193,7 +193,7 @@ export class SampleFieldValuesService {
     });
 
     if (!field) {
-      throw new NotFoundException(`Field with id ${fieldId} was not found.`);
+      throw new NotFoundException(`No se encontró el campo con id ${fieldId}.`);
     }
 
     return field;
@@ -205,7 +205,7 @@ export class SampleFieldValuesService {
   ): void {
     if (sample.template.id !== field.template.id) {
       throw new BadRequestException(
-        'The provided field does not belong to the sample template.',
+        'El campo proporcionado no pertenece a la plantilla de la muestra.',
       );
     }
   }
@@ -222,7 +222,7 @@ export class SampleFieldValuesService {
 
     if (providedKeys.length !== 1) {
       throw new BadRequestException(
-        'Exactly one value field must be provided: valueText, valueNumber, valueDate, or valueBoolean.',
+        'Se debe proporcionar exactamente uno de los siguientes campos: valueText, valueNumber, valueDate o valueBoolean.',
       );
     }
 
@@ -245,7 +245,7 @@ export class SampleFieldValuesService {
 
     if (map[dataType] !== valueKey) {
       throw new BadRequestException(
-        `Field dataType ${dataType} requires ${map[dataType]} to be set.`,
+        `El dataType ${dataType} requiere que ${map[dataType]} esté definido.`,
       );
     }
   }

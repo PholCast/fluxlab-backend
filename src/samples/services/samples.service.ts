@@ -55,7 +55,7 @@ export class SamplesService {
     } catch (error) {
       if (this.isCodePerProjectUniqueViolation(error)) {
         throw new ConflictException(
-          this.buildCodeAlreadyExistsMessage(createSampleDto.code, project.id),
+          await this.buildCodeAlreadyExistsMessage(createSampleDto.code, project.id),
         );
       }
 
@@ -96,7 +96,7 @@ export class SamplesService {
 
   async searchByCode(code: string): Promise<Sample[]> {
     if (!code?.trim()) {
-      throw new BadRequestException('Code query is required.');
+      throw new BadRequestException('Se requiere el código de búsqueda.');
     }
 
     const normalizedCode = code.trim();
@@ -244,7 +244,7 @@ export class SamplesService {
     } catch (error) {
       if (this.isCodePerProjectUniqueViolation(error)) {
         throw new ConflictException(
-          this.buildCodeAlreadyExistsMessage(
+          await this.buildCodeAlreadyExistsMessage(
             createSampleWithValuesDto.code,
             createSampleWithValuesDto.projectId,
           ),
@@ -260,7 +260,7 @@ export class SamplesService {
   async createManyWithValues(
     createSamplesWithValuesDto: CreateSamplesWithValuesDto,
   ): Promise<Sample[]> {
-    this.ensureNoDuplicatedCodesInBulkRequest(createSamplesWithValuesDto.samples);
+    await this.ensureNoDuplicatedCodesInBulkRequest(createSamplesWithValuesDto.samples);
 
     const sampleIds = await this.sampleRepository.manager.transaction(
       async (manager) => {
@@ -283,7 +283,7 @@ export class SamplesService {
 
             createdSampleIds.push(sampleId);
           } catch (error) {
-            this.throwBulkSampleError(error, index, sampleDto);
+            await this.throwBulkSampleError(error, index, sampleDto);
           }
         }
 
@@ -308,7 +308,7 @@ export class SamplesService {
       .getOne();
 
     if (!sample) {
-      throw new NotFoundException(`Sample with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró la muestra con id ${id}.`);
     }
 
     return sample;
@@ -324,7 +324,7 @@ export class SamplesService {
     });
 
     if (!sample) {
-      throw new NotFoundException(`Sample with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró la muestra con id ${id}.`);
     }
 
     const nextTemplate = updateSampleDto.templateId
@@ -365,7 +365,7 @@ export class SamplesService {
     });
 
     if (!sample) {
-      throw new NotFoundException(`Sample with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró la muestra con id ${id}.`);
     }
 
     await this.sampleRepository.manager.transaction(async (manager) => {
@@ -398,7 +398,7 @@ export class SamplesService {
     const sample = await this.sampleRepository.findOne({ where: { id } });
 
     if (!sample) {
-      throw new NotFoundException(`Sample with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró la muestra con id ${id}.`);
     }
 
     await this.sampleRepository.remove(sample);
@@ -406,7 +406,7 @@ export class SamplesService {
 
   async removeBulk(projectId: string, templateId: string): Promise<{ deleted: number }> {
     if (!projectId?.trim() || !templateId?.trim()) {
-      throw new BadRequestException('projectId and templateId are required.');
+      throw new BadRequestException('projectId y templateId son obligatorios.');
     }
 
     await this.getProjectOrThrow(projectId);
@@ -436,7 +436,7 @@ export class SamplesService {
 
     if (!template) {
       throw new NotFoundException(
-        `Template with id ${templateId} was not found.`,
+        `No se encontró la plantilla con id ${templateId}.`,
       );
     }
 
@@ -463,7 +463,7 @@ export class SamplesService {
 
     if (!project) {
       throw new NotFoundException(
-        `Project with id ${projectId} was not found.`,
+        `No se encontró el proyecto con id ${projectId}.`,
       );
     }
 
@@ -514,17 +514,20 @@ export class SamplesService {
     return savedSample.id;
   }
 
-  private ensureNoDuplicatedCodesInBulkRequest(
+  private async ensureNoDuplicatedCodesInBulkRequest(
     samples: CreateSampleWithValuesDto[],
-  ): void {
+  ): Promise<void> {
     const uniqueKeySet = new Set<string>();
+    const projectIdSet = new Set(samples.map((sample) => sample.projectId));
+    const projectNameMap = await this.getProjectNameMapByIds([...projectIdSet]);
 
     for (const [index, sample] of samples.entries()) {
       const uniqueKey = `${sample.projectId}::${sample.code}`;
 
       if (uniqueKeySet.has(uniqueKey)) {
+        const projectName = projectNameMap.get(sample.projectId) ?? sample.projectId;
         throw new ConflictException(
-          `Duplicate code ${sample.code} found in request for project ${sample.projectId} at index ${index}.`,
+          `Se encontró el código duplicado ${sample.code} en la solicitud para el proyecto ${projectName} en el índice ${index}.`,
         );
       }
 
@@ -532,16 +535,16 @@ export class SamplesService {
     }
   }
 
-  private throwBulkSampleError(
+  private async throwBulkSampleError(
     error: unknown,
     index: number,
     sample: CreateSampleWithValuesDto,
-  ): never {
-    const prefix = `Sample at index ${index} with code ${sample.code} failed.`;
+  ): Promise<never> {
+    const prefix = `La muestra en el índice ${index} con código ${sample.code} falló.`;
 
     if (this.isCodePerProjectUniqueViolation(error)) {
       throw new ConflictException(
-        `${prefix} ${this.buildCodeAlreadyExistsMessage(sample.code, sample.projectId)}`,
+        `${prefix} ${await this.buildCodeAlreadyExistsMessage(sample.code, sample.projectId)}`,
       );
     }
 
@@ -577,12 +580,35 @@ export class SamplesService {
       .getOne();
 
     if (existingSample) {
-      throw new ConflictException(this.buildCodeAlreadyExistsMessage(code, projectId));
+      throw new ConflictException(await this.buildCodeAlreadyExistsMessage(code, projectId));
     }
   }
 
-  private buildCodeAlreadyExistsMessage(code: string, projectId: string): string {
-    return `Sample code ${code} already exists in project ${projectId}.`;
+  private async buildCodeAlreadyExistsMessage(code: string, projectId: string): Promise<string> {
+    const projectName = await this.getProjectNameById(projectId);
+    return `El código de muestra ${code} ya existe en el proyecto ${projectName}.`;
+  }
+
+  private async getProjectNameById(projectId: string): Promise<string> {
+    const project = await this.projectRepository.findOne({
+      where: { id: projectId },
+      select: { name: true },
+    });
+
+    return project?.name ?? projectId;
+  }
+
+  private async getProjectNameMapByIds(projectIds: string[]): Promise<Map<string, string>> {
+    if (projectIds.length === 0) {
+      return new Map();
+    }
+
+    const projects = await this.projectRepository.find({
+      where: projectIds.map((id) => ({ id })),
+      select: { id: true, name: true },
+    });
+
+    return new Map(projects.map((project) => [project.id, project.name]));
   }
 
   private isCodePerProjectUniqueViolation(error: unknown): boolean {
@@ -608,14 +634,7 @@ export class SamplesService {
   ): Promise<void> {
     if (!values || values.length === 0) {
       throw new BadRequestException(
-        'values must be provided and contain at least one item for /samples/with-values.',
-      );
-    }
-
-    const duplicatedFieldIds = this.getDuplicateFieldIds(values);
-    if (duplicatedFieldIds.length > 0) {
-      throw new BadRequestException(
-        `Duplicate fieldId entries are not allowed: ${duplicatedFieldIds.join(', ')}.`,
+        'Se deben proporcionar valores y contener al menos un ítem para /samples/with-values.',
       );
     }
 
@@ -623,10 +642,22 @@ export class SamplesService {
       template.fields.map((field) => [field.id, field]),
     );
 
+    const templateName = template.name ?? 'plantilla';
+    const getFieldName = (fieldId: string) =>
+      templateFieldMap.get(fieldId)?.name ?? 'campo desconocido';
+
+    const duplicatedFieldIds = this.getDuplicateFieldIds(values);
+    if (duplicatedFieldIds.length > 0) {
+      const duplicatedFieldNames = duplicatedFieldIds.map(getFieldName);
+      throw new BadRequestException(
+        `No se permiten campos duplicados: ${duplicatedFieldNames.join(', ')}.`,
+      );
+    }
+
     for (const valueItem of values) {
       if (!templateFieldMap.has(valueItem.fieldId)) {
         throw new BadRequestException(
-          `Field ${valueItem.fieldId} does not belong to template ${template.id}.`,
+          `El ${getFieldName(valueItem.fieldId)} no pertenece a la plantilla ${templateName}.`,
         );
       }
     }
@@ -641,8 +672,9 @@ export class SamplesService {
     );
 
     if (missingRequiredFieldIds.length > 0) {
+      const missingRequiredFieldNames = missingRequiredFieldIds.map(getFieldName);
       throw new BadRequestException(
-        `Missing required field values for fields: ${missingRequiredFieldIds.join(', ')}.`,
+        `Faltan valores requeridos para los campos: ${missingRequiredFieldNames.join(', ')}.`,
       );
     }
 
@@ -650,7 +682,7 @@ export class SamplesService {
       const field = templateFieldMap.get(valueItem.fieldId);
       if (!field) {
         throw new BadRequestException(
-          `Field ${valueItem.fieldId} does not belong to template ${template.id}.`,
+          `El ${getFieldName(valueItem.fieldId)} no pertenece a la plantilla ${templateName}.`,
         );
       }
 
@@ -689,7 +721,7 @@ export class SamplesService {
 
     if (provided.length !== 1) {
       throw new BadRequestException(
-        'Exactly one value field must be provided: valueText, valueNumber, valueDate, or valueBoolean.',
+        'Se debe proporcionar exactamente uno de los siguientes campos: valueText, valueNumber, valueDate o valueBoolean.',
       );
     }
 
@@ -715,13 +747,13 @@ export class SamplesService {
 
     if (!expectedValueType) {
       throw new BadRequestException(
-        `Unsupported field dataType ${dataType}. Allowed values are text, number, date, boolean.`,
+        `Tipo de dato de campo no soportado ${dataType}. Los valores permitidos son text, number, date, boolean.`,
       );
     }
 
     if (expectedValueType !== valueType) {
       throw new BadRequestException(
-        `Field dataType ${normalizedDataType} requires ${expectedValueType} to be provided.`,
+        `El dataType de campo ${normalizedDataType} requiere que se proporcione ${expectedValueType}.`,
       );
     }
   }
@@ -751,7 +783,7 @@ export class SamplesService {
     if (valueType === 'valueDate') {
       const parsedDate = new Date(value.valueDate ?? '');
       if (Number.isNaN(parsedDate.getTime())) {
-        throw new BadRequestException('valueDate must be a valid date string.');
+        throw new BadRequestException('valueDate debe ser una cadena de fecha válida.');
       }
 
       return {

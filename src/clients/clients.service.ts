@@ -35,7 +35,7 @@ export class ClientsService {
     });
 
     if (existingClient) {
-      throw new ConflictException('A client with this email already exists');
+      throw new ConflictException('Ya existe un cliente con este correo electrónico');
     }
 
     const client = this.clientsRepository.create({
@@ -115,7 +115,7 @@ export class ClientsService {
 
   async filterClientsByDateRange(fromDate?: string, toDate?: string) {
     if (!fromDate && !toDate) {
-      throw new BadRequestException('At least one of fromDate or toDate must be provided');
+      throw new BadRequestException('Se debe proporcionar al menos una de las fechas fromDate o toDate');
     }
 
     return this.findAll({ fromDate, toDate });
@@ -128,7 +128,7 @@ export class ClientsService {
     });
 
     if (!client) {
-      throw new NotFoundException('Client not found');
+      throw new NotFoundException('Cliente no encontrado');
     }
 
     return client;
@@ -152,7 +152,7 @@ export class ClientsService {
       });
 
       if (emailTaken && emailTaken.id !== id) {
-        throw new ConflictException('A client with this email already exists');
+        throw new ConflictException('Ya existe un cliente con este correo electrónico');
       }
     }
 
@@ -169,7 +169,7 @@ export class ClientsService {
 
   async remove(id: string, confirm?: boolean) {
     if (!confirm) {
-      throw new BadRequestException('Deletion confirmation is required');
+      throw new BadRequestException('Se requiere confirmación de eliminación');
     }
 
     const client = await this.findClientByIdOrFail(id);
@@ -182,7 +182,7 @@ export class ClientsService {
 
   async searchClientsByName(name: string) {
     if (!name || !name.trim()) {
-      throw new BadRequestException('Name query is required');
+      throw new BadRequestException('Se requiere el nombre de búsqueda');
     }
 
     const normalizedName = name.trim();
@@ -229,7 +229,7 @@ export class ClientsService {
     const client = await this.clientsRepository.findOne({ where: { id: clientId } });
 
     if (!client) {
-      throw new NotFoundException('Client not found');
+      throw new NotFoundException('Cliente no encontrado');
     }
 
     return client;
@@ -261,7 +261,7 @@ export class ClientsService {
 
     const existingClient = await query.getOne();
     if (existingClient) {
-      throw new ConflictException('A client with this name already exists');
+      throw new ConflictException('Ya existe un cliente con este nombre');
     }
   }
 
@@ -276,7 +276,7 @@ export class ClientsService {
       (parsedFromDate && Number.isNaN(parsedFromDate.getTime())) ||
       (parsedToDate && Number.isNaN(parsedToDate.getTime()))
     ) {
-      throw new BadRequestException('fromDate and toDate must be valid dates');
+      throw new BadRequestException('fromDate y toDate deben ser fechas válidas');
     }
 
     if (
@@ -284,7 +284,7 @@ export class ClientsService {
       parsedToDate &&
       parsedFromDate.getTime() > parsedToDate.getTime()
     ) {
-      throw new BadRequestException('fromDate cannot be greater than toDate');
+      throw new BadRequestException('fromDate no puede ser mayor que toDate');
     }
 
     return {

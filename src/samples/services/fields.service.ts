@@ -33,7 +33,7 @@ export class FieldsService {
 
       if (!managedTemplate) {
         throw new NotFoundException(
-          `Template with id ${template.id} was not found.`,
+          `No se encontró la plantilla con id ${template.id}.`,
         );
       }
 
@@ -70,7 +70,7 @@ export class FieldsService {
 
       if (!reloadedField) {
         throw new NotFoundException(
-          `Field with id ${savedField.id} was not found.`,
+          `No se encontró el campo con id ${savedField.id}.`,
         );
       }
 
@@ -95,7 +95,7 @@ export class FieldsService {
     });
 
     if (!existingField) {
-      throw new NotFoundException(`Field with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró el campo con id ${id}.`);
     }
 
     if (
@@ -103,7 +103,7 @@ export class FieldsService {
       updateFieldDto.templateId !== existingField.template.id
     ) {
       throw new BadRequestException(
-        'Field cannot be moved to another template.',
+        'El campo no puede moverse a otra plantilla.',
       );
     }
 
@@ -118,7 +118,7 @@ export class FieldsService {
       });
 
       if (!field) {
-        throw new NotFoundException(`Field with id ${id} was not found.`);
+        throw new NotFoundException(`No se encontró el campo con id ${id}.`);
       }
 
       if (updateFieldDto.dataType !== undefined) {
@@ -132,7 +132,7 @@ export class FieldsService {
 
           if (fieldValueCount > 0) {
             throw new BadRequestException(
-              'Field dataType cannot be updated because sample field values already exist for this field.',
+              'No se puede actualizar el tipo de dato del campo porque ya existen muestras con valores diligenciados para este campo.',
             );
           }
         }
@@ -182,7 +182,7 @@ export class FieldsService {
       });
 
       if (!reloadedField) {
-        throw new NotFoundException(`Field with id ${field.id} was not found.`);
+        throw new NotFoundException(`No se encontró el campo con id ${field.id}.`);
       }
 
       return reloadedField;
@@ -196,7 +196,7 @@ export class FieldsService {
     });
 
     if (!field) {
-      throw new NotFoundException(`Field with id ${id} was not found.`);
+      throw new NotFoundException(`No se encontró el campo con id ${id}.`);
     }
 
     await this.fieldRepository.manager.transaction(async (manager) => {
@@ -214,7 +214,7 @@ export class FieldsService {
 
     if (!template) {
       throw new NotFoundException(
-        `Template with id ${templateId} was not found.`,
+        `No se encontró la plantilla con id ${templateId}.`,
       );
     }
 
