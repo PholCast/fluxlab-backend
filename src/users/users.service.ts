@@ -81,6 +81,8 @@ export class UsersService {
 
   async update(id: string | number, data: UpdateUserDto) {
     const user = await this.findOne(id);
+    const normalizedName = typeof data.name === 'string' ? data.name.trim() : undefined;
+    const normalizedEmail = typeof data.email === 'string' ? data.email.trim() : undefined;
 
     if (typeof data.password !== 'undefined') {
       throw new BadRequestException('La contraseña debe actualizarse usando PATCH /users/:id/password');
@@ -90,20 +92,48 @@ export class UsersService {
       throw new BadRequestException('El rol debe actualizarse usando PATCH /users/:id/role');
     }
 
-    if (data.email && data.email !== user.email) {
-      const emailInUse = await this.userRepo.findOne({ where: { email: data.email } });
+    if (normalizedEmail && normalizedEmail !== user.email) {
+      const emailInUse = await this.userRepo.findOne({ where: { email: normalizedEmail } });
       if (emailInUse && emailInUse.id !== user.id) {
         throw new ConflictException('Ya existe un usuario con este correo electrónico');
       }
     }
 
-    const updatableData = {
-      name: data.name,
-      email: data.email,
-      active: data.active,
-    };
-    const mergedUser = this.userRepo.merge(user, updatableData);
-    return this.userRepo.save(mergedUser);
+    let authEmailUpdated = false;
+
+    if (normalizedEmail && normalizedEmail !== user.email) {
+      await this.updateAuthEmail(user.id, normalizedEmail);
+      authEmailUpdated = true;
+    }
+
+    const updatableData: Partial<User> = {};
+
+    if (typeof normalizedName !== 'undefined') {
+      updatableData.name = normalizedName;
+    }
+
+    if (typeof normalizedEmail !== 'undefined') {
+      updatableData.email = normalizedEmail;
+    }
+
+    if (typeof data.active !== 'undefined') {
+      updatableData.active = data.active;
+    }
+
+    try {
+      const mergedUser = this.userRepo.merge(user, updatableData);
+      return await this.userRepo.save(mergedUser);
+    } catch (error) {
+      if (authEmailUpdated) {
+        try {
+          await this.updateAuthEmail(user.id, user.email);
+        } catch {
+          // Best-effort rollback for Supabase auth email.
+        }
+      }
+
+      throw new ConflictException('No se pudo actualizar el usuario');
+    }
   }
 
   async updateUserRole(userId: string, newRole: string) {
@@ -175,6 +205,19 @@ export class UsersService {
 
     if (error) {
       throw new ConflictException(`Error al actualizar metadatos de Supabase: ${error.message}`);
+    }
+  }
+
+  private async updateAuthEmail(userId: string, email: string): Promise<void> {
+    const supabase = this.supabaseService.getClient();
+
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      email,
+      email_confirm: true,
+    });
+
+    if (error) {
+      throw new ConflictException(`Error al actualizar el correo en Supabase: ${error.message}`);
     }
   }
 
