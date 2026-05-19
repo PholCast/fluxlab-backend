@@ -35,6 +35,7 @@ export class DashboardService {
       totalTemplates,
       totalUsers,
       totalReports,
+      estimatedReports,
       activeUsers,
       activeClients,
     ] = await Promise.all([
@@ -44,9 +45,12 @@ export class DashboardService {
       this.templateRepository.count(),
       this.userRepository.count(),
       this.reportRepository.count(),
+      this.getEstimatedReportsCount(),
       this.userRepository.count({ where: { active: true } }),
       this.clientRepository.count({ where: { status: 'active' } }),
     ]);
+
+    const reportsCount = totalReports > 0 ? totalReports : estimatedReports;
 
     const [samplesByStatus, projectsByStatus, clientsByStatus] = await Promise.all([
       this.getStatusCounts(this.sampleRepository, 'status'),
@@ -119,7 +123,7 @@ export class DashboardService {
         samples: totalSamples,
         templates: totalTemplates,
         users: totalUsers,
-        reports: totalReports,
+        reports: reportsCount,
       },
       samplesByStatus,
       projectsByStatus,
@@ -191,5 +195,14 @@ export class DashboardService {
       acc[key] = Number(row.count) || 0;
       return acc;
     }, {});
+  }
+
+  private async getEstimatedReportsCount(): Promise<number> {
+    const result = await this.sampleRepository
+      .createQueryBuilder('sample')
+      .select("COUNT(DISTINCT CONCAT(sample.project_id, ':', sample.template_id))", 'count')
+      .getRawOne<{ count?: string }>();
+
+    return Number(result?.count) || 0;
   }
 }
