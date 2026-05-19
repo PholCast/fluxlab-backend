@@ -27,6 +27,9 @@ export class SamplesRepositorySampleItemDto {
   @ApiProperty()
   code!: string;
 
+  @ApiProperty({ nullable: true })
+  customCode!: string | null;
+
   @ApiProperty()
   status!: string;
 

@@ -38,11 +38,16 @@ export class SamplesService {
   async create(createSampleDto: CreateSampleDto): Promise<Sample> {
     const template = await this.getTemplateOrThrow(createSampleDto.templateId);
     const project = await this.getProjectOrThrow(createSampleDto.projectId);
+    const normalizedCustomCode = this.normalizeOptionalCustomCode(
+      createSampleDto.customCode,
+    );
 
     await this.ensureCodeUniquePerProject(createSampleDto.code, project.id);
+    await this.ensureCustomCodeUniquePerProject(normalizedCustomCode, project.id);
 
     const sample = this.sampleRepository.create({
       code: createSampleDto.code,
+      customCode: normalizedCustomCode,
       // createdBy: createSampleDto.createdBy,
       status: createSampleDto.status ?? 'pending',
       template,
@@ -56,6 +61,15 @@ export class SamplesService {
       if (this.isCodePerProjectUniqueViolation(error)) {
         throw new ConflictException(
           await this.buildCodeAlreadyExistsMessage(createSampleDto.code, project.id),
+        );
+      }
+
+      if (this.isCustomCodePerProjectUniqueViolation(error)) {
+        throw new ConflictException(
+          await this.buildCustomCodeAlreadyExistsMessage(
+            normalizedCustomCode ?? createSampleDto.customCode ?? '',
+            project.id,
+          ),
         );
       }
 
@@ -188,6 +202,7 @@ export class SamplesService {
       const sampleItem: SamplesRepositorySampleItemDto = {
         id: sample.id,
         code: sample.code,
+        customCode: sample.customCode ?? null,
         status: sample.status,
         createdAt: sample.createdAt,
         values: (sample.sampleFieldValues ?? []).map((sampleFieldValue) => ({
@@ -224,6 +239,9 @@ export class SamplesService {
     createSampleWithValuesDto: CreateSampleWithValuesDto,
   ): Promise<Sample> {
     let sampleId: string;
+    const normalizedCustomCode = this.normalizeOptionalCustomCode(
+      createSampleWithValuesDto.customCode,
+    );
     try {
       sampleId = await this.sampleRepository.manager.transaction(
         async (manager) => {
@@ -246,6 +264,15 @@ export class SamplesService {
         throw new ConflictException(
           await this.buildCodeAlreadyExistsMessage(
             createSampleWithValuesDto.code,
+            createSampleWithValuesDto.projectId,
+          ),
+        );
+      }
+
+      if (this.isCustomCodePerProjectUniqueViolation(error)) {
+        throw new ConflictException(
+          await this.buildCustomCodeAlreadyExistsMessage(
+            normalizedCustomCode ?? createSampleWithValuesDto.customCode ?? '',
             createSampleWithValuesDto.projectId,
           ),
         );
@@ -344,7 +371,24 @@ export class SamplesService {
       );
     }
 
+    const hasCustomCode = Object.prototype.hasOwnProperty.call(
+      updateSampleDto,
+      'customCode',
+    );
+    const nextCustomCode = hasCustomCode
+      ? this.normalizeOptionalCustomCode(updateSampleDto.customCode)
+      : sample.customCode;
+
+    if (nextProject.id !== sample.project.id || nextCustomCode !== sample.customCode) {
+      await this.ensureCustomCodeUniquePerProject(
+        nextCustomCode,
+        nextProject.id,
+        sample.id,
+      );
+    }
+
     sample.code = nextCode;
+    sample.customCode = nextCustomCode ?? null;
     // sample.createdBy = updateSampleDto.createdBy ?? sample.createdBy;
     sample.status = updateSampleDto.status ?? sample.status;
     sample.template = nextTemplate;
@@ -361,7 +405,7 @@ export class SamplesService {
   ): Promise<Sample> {
     const sample = await this.sampleRepository.findOne({
       where: { id },
-      relations: { template: { fields: true } },
+      relations: { template: { fields: true }, project: true },
     });
 
     if (!sample) {
@@ -371,9 +415,32 @@ export class SamplesService {
     await this.sampleRepository.manager.transaction(async (manager) => {
       const sampleRepository = manager.getRepository(Sample);
       const sampleFieldValueRepository = manager.getRepository(SampleFieldValue);
+      let shouldSaveSample = false;
 
       if (updateSampleWithValuesDto.status) {
         sample.status = updateSampleWithValuesDto.status;
+        shouldSaveSample = true;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updateSampleWithValuesDto, 'customCode')) {
+        const normalizedCustomCode = this.normalizeOptionalCustomCode(
+          updateSampleWithValuesDto.customCode,
+        );
+
+        if (normalizedCustomCode !== sample.customCode) {
+          await this.ensureCustomCodeUniquePerProject(
+            normalizedCustomCode,
+            sample.project.id,
+            sample.id,
+            sampleRepository,
+          );
+        }
+
+        sample.customCode = normalizedCustomCode;
+        shouldSaveSample = true;
+      }
+
+      if (shouldSaveSample) {
         await sampleRepository.save(sample);
       }
 
@@ -493,9 +560,19 @@ export class SamplesService {
       undefined,
       sampleRepository,
     );
+    const normalizedCustomCode = this.normalizeOptionalCustomCode(
+      createSampleWithValuesDto.customCode,
+    );
+    await this.ensureCustomCodeUniquePerProject(
+      normalizedCustomCode,
+      project.id,
+      undefined,
+      sampleRepository,
+    );
 
     const sample = sampleRepository.create({
       code: createSampleWithValuesDto.code,
+      customCode: normalizedCustomCode,
       // createdBy: createSampleWithValuesDto.createdBy,
       status: createSampleWithValuesDto.status ?? 'pending',
       template,
@@ -517,21 +594,36 @@ export class SamplesService {
   private async ensureNoDuplicatedCodesInBulkRequest(
     samples: CreateSampleWithValuesDto[],
   ): Promise<void> {
-    const uniqueKeySet = new Set<string>();
+    const uniqueCodeKeySet = new Set<string>();
+    const uniqueCustomCodeKeySet = new Set<string>();
     const projectIdSet = new Set(samples.map((sample) => sample.projectId));
     const projectNameMap = await this.getProjectNameMapByIds([...projectIdSet]);
 
     for (const [index, sample] of samples.entries()) {
       const uniqueKey = `${sample.projectId}::${sample.code}`;
 
-      if (uniqueKeySet.has(uniqueKey)) {
+      if (uniqueCodeKeySet.has(uniqueKey)) {
         const projectName = projectNameMap.get(sample.projectId) ?? sample.projectId;
         throw new ConflictException(
           `Se encontró el código duplicado ${sample.code} en la solicitud para el proyecto ${projectName} en el índice ${index}.`,
         );
       }
 
-      uniqueKeySet.add(uniqueKey);
+      uniqueCodeKeySet.add(uniqueKey);
+
+      const normalizedCustomCode = this.normalizeOptionalCustomCode(sample.customCode);
+      if (normalizedCustomCode) {
+        const customKey = `${sample.projectId}::${normalizedCustomCode}`;
+
+        if (uniqueCustomCodeKeySet.has(customKey)) {
+          const projectName = projectNameMap.get(sample.projectId) ?? sample.projectId;
+          throw new ConflictException(
+            `Se encontró el customCode duplicado ${normalizedCustomCode} en la solicitud para el proyecto ${projectName} en el índice ${index}.`,
+          );
+        }
+
+        uniqueCustomCodeKeySet.add(customKey);
+      }
     }
   }
 
@@ -545,6 +637,16 @@ export class SamplesService {
     if (this.isCodePerProjectUniqueViolation(error)) {
       throw new ConflictException(
         `${prefix} ${await this.buildCodeAlreadyExistsMessage(sample.code, sample.projectId)}`,
+      );
+    }
+
+    if (this.isCustomCodePerProjectUniqueViolation(error)) {
+      const normalizedCustomCode = this.normalizeOptionalCustomCode(sample.customCode);
+      throw new ConflictException(
+        `${prefix} ${await this.buildCustomCodeAlreadyExistsMessage(
+          normalizedCustomCode ?? sample.customCode ?? '',
+          sample.projectId,
+        )}`,
       );
     }
 
@@ -584,9 +686,53 @@ export class SamplesService {
     }
   }
 
+  private normalizeOptionalCustomCode(customCode?: string | null): string | null {
+    if (typeof customCode !== 'string') {
+      return null;
+    }
+
+    const normalized = customCode.trim();
+    return normalized ? normalized : null;
+  }
+
+  private async ensureCustomCodeUniquePerProject(
+    customCode: string | null,
+    projectId: string,
+    ignoreSampleId?: string,
+    sampleRepository?: Repository<Sample>,
+  ): Promise<void> {
+    if (!customCode) {
+      return;
+    }
+
+    const existingSample = await (sampleRepository ?? this.sampleRepository)
+      .createQueryBuilder('sample')
+      .leftJoin('sample.project', 'project')
+      .where('sample.customCode = :customCode', { customCode })
+      .andWhere('project.id = :projectId', { projectId })
+      .andWhere(ignoreSampleId ? 'sample.id != :ignoreSampleId' : '1=1', {
+        ignoreSampleId,
+      })
+      .getOne();
+
+    if (existingSample) {
+      throw new ConflictException(
+        await this.buildCustomCodeAlreadyExistsMessage(customCode, projectId),
+      );
+    }
+  }
+
   private async buildCodeAlreadyExistsMessage(code: string, projectId: string): Promise<string> {
     const projectName = await this.getProjectNameById(projectId);
     return `El código de muestra ${code} ya existe en el proyecto ${projectName}.`;
+  }
+
+  private async buildCustomCodeAlreadyExistsMessage(
+    customCode: string,
+    projectId: string,
+  ): Promise<string> {
+    const projectName = await this.getProjectNameById(projectId);
+    return `El código de laboratorio ${customCode} ya existe en el proyecto ${projectName}.`;
   }
 
   private async getProjectNameById(projectId: string): Promise<string> {
@@ -623,6 +769,21 @@ export class SamplesService {
     return (
       driverError?.code === '23505' &&
       driverError?.constraint === 'UQ_samples_project_code'
+    );
+  }
+
+  private isCustomCodePerProjectUniqueViolation(error: unknown): boolean {
+    if (!(error instanceof QueryFailedError)) {
+      return false;
+    }
+
+    const driverError = error.driverError as
+      | { code?: string; constraint?: string }
+      | undefined;
+
+    return (
+      driverError?.code === '23505' &&
+      driverError?.constraint === 'UQ_samples_project_customcode'
     );
   }
 

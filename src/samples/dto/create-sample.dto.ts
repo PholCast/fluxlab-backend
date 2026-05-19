@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsIn,
   IsNotEmpty,
@@ -15,6 +15,12 @@ export class CreateSampleDto {
   @IsNotEmpty()
   @MaxLength(120)
   code: string;
+
+  @ApiPropertyOptional({ example: 'EXT-2026-0001', required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  customCode?: string;
 
   @ApiProperty({ example: '3f7da128-cadf-4bd8-9a2a-5581d1fcb1d7' })
   @IsUUID()

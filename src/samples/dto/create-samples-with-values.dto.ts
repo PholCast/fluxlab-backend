@@ -10,6 +10,7 @@ export class CreateSamplesWithValuesDto {
     example: [
       {
         code: 'SAMPLE-001',
+        customCode: 'EXT-001',
         templateId: '5f37786f-ac32-440a-a8ae-6d74bb27d691',
         projectId: 'f6d8ad2b-7bb8-417b-88dc-1f02745a77d9',
         status: 'pending',
@@ -22,6 +23,7 @@ export class CreateSamplesWithValuesDto {
       },
       {
         code: 'SAMPLE-002',
+        customCode: 'EXT-002',
         templateId: '5f37786f-ac32-440a-a8ae-6d74bb27d691',
         projectId: 'f6d8ad2b-7bb8-417b-88dc-1f02745a77d9',
         status: 'pending',
